@@ -66,6 +66,7 @@
             font-size: 1rem;
             margin-bottom: 8px;
             word-break: break-word;
+            white-space: pre-line;
         }
         .message-meta {
             display: flex;
@@ -75,6 +76,12 @@
             color: #6b7280;
             gap: 10px;
             flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .message-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
         }
         .complete-btn {
             background: #10b981;
@@ -89,6 +96,20 @@
         }
         .complete-btn:hover {
             background: #059669;
+        }
+        .delete-btn {
+            background: #ef4444;
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .delete-btn:hover {
+            background: #dc2626;
         }
         .input-area {
             padding: 16px;
@@ -112,6 +133,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
         .voice-btn.recording {
             background: #ef4444;
@@ -149,6 +171,8 @@
             margin: 8px;
             border-radius: 30px;
             border: 1px solid #ccc;
+            width: 80%;
+            max-width: 300px;
         }
         button {
             background: #2c5f2d;
@@ -170,18 +194,36 @@
             justify-content: space-between;
             align-items: center;
         }
+        .user-name {
+            font-weight: bold;
+            color: #2c5f2d;
+        }
+        .edit-name-btn {
+            background: none;
+            border: none;
+            font-size: 0.8rem;
+            cursor: pointer;
+            padding: 2px 8px;
+            margin-left: 8px;
+        }
+        h3 {
+            margin: 0 0 15px 0;
+        }
+        hr {
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
 <div class="app" id="app">
-    <div class="chat-header">🌾 Агрофирма — заказы (голосом)</div>
+    <div class="chat-header">🌾 Агрофарм — заказы</div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1;">
         <div class="user-info" id="user-info"></div>
         <div class="messages" id="messages-list"></div>
         <div class="input-area">
             <button class="voice-btn" id="voiceBtn">🎤</button>
-            <input type="text" id="messageInput" class="message-input" placeholder="Или введите текст заказа...">
+            <input type="text" id="messageInput" class="message-input" placeholder="Надиктуйте или введите заказ...">
             <button class="send-btn" id="sendBtn">Отправить</button>
         </div>
     </div>
@@ -189,7 +231,6 @@
 
 <script>
     // ======================== КОНФИГУРАЦИЯ FIREBASE ========================
-    // ЗАМЕНИТЕ ЭТИ ДАННЫЕ НА ВАШИ ИЗ ПРОЕКТА FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyDEJMFF6XkYzIVCWkh4WD6InZGINTjgwuc",
         authDomain: "agrochat-e5b53.firebaseapp.com",
@@ -206,9 +247,26 @@
 
     // Коллекция сообщений
     const ordersRef = db.collection('orders');
+    
+    // Коллекция для имён пользователей
+    const usersRef = db.collection('users');
 
     // DOM элементы
     let currentUser = null;
+    let currentUserName = '';
+
+    // Функция для получения/сохранения имени пользователя
+    async function getUserName(userId) {
+        const doc = await usersRef.doc(userId).get();
+        if (doc.exists) {
+            return doc.data().name;
+        }
+        return null;
+    }
+
+    async function setUserName(userId, name) {
+        await usersRef.doc(userId).set({ name: name, email: currentUser.email });
+    }
 
     function renderAuth() {
         const container = document.getElementById('auth-container');
@@ -218,34 +276,72 @@
             chatContainer.style.display = 'none';
             container.innerHTML = `
                 <div class="auth-panel">
-                    <h3>Вход для сотрудников</h3>
+                    <h3>👋 Вход для сотрудников</h3>
+                    <input type="text" id="regName" class="login-input" placeholder="Ваше имя (например, Иван)">
                     <input type="email" id="loginEmail" class="login-input" placeholder="Email">
                     <input type="password" id="loginPassword" class="login-input" placeholder="Пароль">
-                    <button id="loginBtn">Войти</button>
+                    <button id="registerBtn">📝 Зарегистрироваться</button>
                     <hr>
-                    <p style="font-size:0.8rem;">Нет аккаунта? Создайте тестовый:</p>
-                    <button id="registerBtn">Зарегистрироваться</button>
+                    <p style="font-size:0.8rem;">Уже есть аккаунт?</p>
+                    <button id="loginBtn">🔑 Войти</button>
                 </div>
             `;
+            
+            document.getElementById('registerBtn')?.addEventListener('click', async () => {
+                const name = document.getElementById('regName').value.trim();
+                const email = document.getElementById('loginEmail').value;
+                const pwd = document.getElementById('loginPassword').value;
+                
+                if (!name) {
+                    alert('Введите ваше имя');
+                    return;
+                }
+                if (!email || !pwd) {
+                    alert('Введите email и пароль');
+                    return;
+                }
+                
+                try {
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, pwd);
+                    await setUserName(userCredential.user.uid, name);
+                    alert('Регистрация успешна!');
+                } catch (err) {
+                    alert('Ошибка: ' + err.message);
+                }
+            });
+            
             document.getElementById('loginBtn')?.addEventListener('click', () => {
                 const email = document.getElementById('loginEmail').value;
                 const pwd = document.getElementById('loginPassword').value;
                 auth.signInWithEmailAndPassword(email, pwd).catch(err => alert(err.message));
             });
-            document.getElementById('registerBtn')?.addEventListener('click', () => {
-                const email = document.getElementById('loginEmail').value;
-                const pwd = document.getElementById('loginPassword').value;
-                if (!email || !pwd) return alert('Введите email и пароль');
-                auth.createUserWithEmailAndPassword(email, pwd).catch(err => alert(err.message));
-            });
         } else {
             container.style.display = 'none';
             chatContainer.style.display = 'flex';
-            document.getElementById('user-info').innerHTML = `
-                <span>👤 ${currentUser.email}</span>
-                <button class="logout-btn" id="logoutBtn">Выйти</button>
-            `;
-            document.getElementById('logoutBtn')?.addEventListener('click', () => auth.signOut());
+            
+            // Загружаем имя пользователя
+            getUserName(currentUser.uid).then(name => {
+                if (name) {
+                    currentUserName = name;
+                } else {
+                    currentUserName = currentUser.email.split('@')[0];
+                }
+                document.getElementById('user-info').innerHTML = `
+                    <span>👤 <span class="user-name">${escapeHtml(currentUserName)}</span>
+                        <button class="edit-name-btn" id="editNameBtn">✏️</button>
+                    </span>
+                    <button class="logout-btn" id="logoutBtn">Выйти</button>
+                `;
+                document.getElementById('editNameBtn')?.addEventListener('click', () => {
+                    const newName = prompt('Введите ваше имя:', currentUserName);
+                    if (newName && newName.trim()) {
+                        setUserName(currentUser.uid, newName.trim());
+                        currentUserName = newName.trim();
+                        location.reload();
+                    }
+                });
+                document.getElementById('logoutBtn')?.addEventListener('click', () => auth.signOut());
+            });
         }
     }
 
@@ -253,131 +349,279 @@
         currentUser = user;
         renderAuth();
         if (user) {
-            // Загружаем сообщения
             listenMessages();
         }
     });
 
-    // Функция отображения сообщений
-    let unsubscribeMessages = null;
     function listenMessages() {
-        if (unsubscribeMessages) unsubscribeMessages();
-        unsubscribeMessages = ordersRef.orderBy('timestamp', 'asc').onSnapshot(snapshot => {
+        if (window.unsubscribeMessages) window.unsubscribeMessages();
+        window.unsubscribeMessages = ordersRef.orderBy('timestamp', 'asc').onSnapshot(async snapshot => {
             const messagesDiv = document.getElementById('messages-list');
             messagesDiv.innerHTML = '';
-            snapshot.forEach(doc => {
+            
+            for (const doc of snapshot.docs) {
                 const data = doc.data();
                 const messageId = doc.id;
+                
+                // Получаем имя автора
+                let authorName = data.authorName || data.authorEmail;
+                if (data.authorId && !data.authorName) {
+                    const userName = await getUserName(data.authorId);
+                    if (userName) authorName = userName;
+                }
+                
+                const isAuthor = currentUser && data.authorId === currentUser.uid;
+                
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${data.status === 'completed' ? 'completed' : ''}`;
+                
+                let actionsHtml = '';
+                if (data.status !== 'completed') {
+                    actionsHtml += `<button class="complete-btn" data-id="${messageId}">✅ Выполнено</button>`;
+                } else {
+                    actionsHtml += `<span style="color:#10b981;">✔ Выполнен</span>`;
+                }
+                
+                if (isAuthor) {
+                    actionsHtml += `<button class="delete-btn" data-id="${messageId}">🗑 Удалить</button>`;
+                }
+                
                 messageDiv.innerHTML = `
                     <div class="message-text">${escapeHtml(data.text)}</div>
                     <div class="message-meta">
                         <span>📅 ${new Date(data.timestamp?.toDate()).toLocaleString()}</span>
-                        <span>👤 ${data.authorEmail || '?'}</span>
-                        ${data.status !== 'completed' ? `<button class="complete-btn" data-id="${messageId}">✅ Выполнено</button>` : '<span style="color:#10b981;">✔ Выполнен</span>'}
+                        <span>👤 ${escapeHtml(authorName)}</span>
+                        <div class="message-actions">
+                            ${actionsHtml}
+                        </div>
                     </div>
                 `;
                 messagesDiv.appendChild(messageDiv);
-            });
-            // Добавляем обработчики на кнопки "Выполнено"
+            }
+            
+            // Обработчики для кнопок "Выполнено"
             document.querySelectorAll('.complete-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = btn.getAttribute('data-id');
                     await ordersRef.doc(id).update({ status: 'completed' });
                 });
             });
-            // Прокрутка вниз
+            
+            // Обработчики для кнопок "Удалить"
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = btn.getAttribute('data-id');
+                    if (confirm('Удалить этот заказ?')) {
+                        await ordersRef.doc(id).delete();
+                    }
+                });
+            });
+            
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         });
     }
 
-    // Отправка текстового сообщения
     async function sendMessage(text) {
         if (!text.trim() || !currentUser) return;
+        
+        // Разбиваем текст на пункты
+        const formattedText = formatOrderText(text.trim());
+        
         await ordersRef.add({
-            text: text.trim(),
+            text: formattedText,
+            authorId: currentUser.uid,
+            authorName: currentUserName,
             authorEmail: currentUser.email,
             timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             status: 'active'
         });
     }
 
-    // Голосовой ввод (Web Speech API)
+    // Функция для разбивки заказа на пункты
+    function formatOrderText(text) {
+        const markers = [
+            /(?:^|\s)(первый|1-й|1\)|пункт первый)(?:\s|:)/i,
+            /(?:^|\s)(второй|2-й|2\)|пункт второй)(?:\s|:)/i,
+            /(?:^|\s)(третий|3-й|3\)|пункт третий)(?:\s|:)/i,
+            /(?:^|\s)(четвертый|4-й|4\)|пункт четвертый)(?:\s|:)/i,
+            /(?:^|\s)(пятый|5-й|5\)|пункт пятый)(?:\s|:)/i,
+            /(?:^|\s)(шестой|6-й|6\)|пункт шестой)(?:\s|:)/i,
+            /(?:^|\s)(седьмой|7-й|7\)|пункт седьмой)(?:\s|:)/i,
+            /(?:^|\s)(восьмой|8-й|8\)|пункт восьмой)(?:\s|:)/i,
+            /(?:^|\s)(девятый|9-й|9\)|пункт девятый)(?:\s|:)/i,
+            /(?:^|\s)(десятый|10-й|10\)|пункт десятый)(?:\s|:)/i
+        ];
+        
+        let hasMarkers = false;
+        for (const marker of markers) {
+            if (marker.test(text)) {
+                hasMarkers = true;
+                break;
+            }
+        }
+        
+        if (!hasMarkers) {
+            return text;
+        }
+        
+        let currentNumber = 1;
+        let processedText = text;
+        
+        const replacements = [
+            { pattern: /(?:^|\s)(первый|1-й|1\)|пункт первый)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
+            { pattern: /(?:^|\s)(второй|2-й|2\)|пункт второй)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
+            { pattern: /(?:^|\s)(третий|3-й|3\)|пункт третий)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
+            { pattern: /(?:^|\s)(четвертый|4-й|4\)|пункт четвертый)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
+            { pattern: /(?:^|\s)(пятый|5-й|5\)|пункт пятый)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
+            { pattern: /(?:^|\s)(шестой|6-й|6\)|пункт шестой)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
+            { pattern: /(?:^|\s)(седьмой|7-й|7\)|пункт седьмой)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
+            { pattern: /(?:^|\s)(восьмой|8-й|8\)|пункт восьмой)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
+            { pattern: /(?:^|\s)(девятый|9-й|9\)|пункт девятый)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
+            { pattern: /(?:^|\s)(десятый|10-й|10\)|пункт десятый)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` }
+        ];
+        
+        for (const rep of replacements) {
+            processedText = processedText.replace(rep.pattern, rep.replacement);
+        }
+        
+        processedText = processedText.replace(/^\n+/, '').replace(/\n+/g, '\n').trim();
+        
+        if (processedText.includes('\n')) {
+            return processedText;
+        }
+        
+        return text;
+    }
+
+    // ========== ГОЛОСОВОЙ ВВОД ==========
     let recognition = null;
+    let isRecording = false;
+    let accumulatedText = '';
+
     const voiceBtn = document.getElementById('voiceBtn');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
 
     function initSpeech() {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            voiceBtn.disabled = true;
-            voiceBtn.title = "Ваш браузер не поддерживает голосовой ввод";
+            if (voiceBtn) {
+                voiceBtn.disabled = true;
+                voiceBtn.title = "Ваш браузер не поддерживает голосовой ввод";
+            }
             return;
         }
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+        recognition.interimResults = true;
+        recognition.continuous = true;
 
         recognition.onstart = () => {
-            voiceBtn.classList.add('recording');
+            isRecording = true;
+            if (voiceBtn) {
+                voiceBtn.classList.add('recording');
+                voiceBtn.textContent = '⏹️';
+            }
         };
+
         recognition.onend = () => {
-            voiceBtn.classList.remove('recording');
+            isRecording = false;
+            if (voiceBtn) {
+                voiceBtn.classList.remove('recording');
+                voiceBtn.textContent = '🎤';
+            }
+            
+            if (accumulatedText.trim() && messageInput) {
+                messageInput.value = accumulatedText.trim();
+                accumulatedText = '';
+            }
         };
+
         recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            messageInput.value = transcript;
+            let interimText = '';
+            let finalText = '';
+            
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalText += transcript + ' ';
+                } else {
+                    interimText += transcript;
+                }
+            }
+            
+            if (finalText) {
+                accumulatedText += finalText;
+                if (messageInput) {
+                    messageInput.value = accumulatedText + (interimText ? ' ' + interimText : '');
+                }
+            } else if (interimText && messageInput) {
+                messageInput.value = accumulatedText + ' ' + interimText;
+            }
         };
+
         recognition.onerror = (event) => {
             console.error('Speech error', event.error);
-            voiceBtn.classList.remove('recording');
-            alert('Ошибка распознавания: ' + event.error);
+            if (event.error === 'not-allowed') {
+                alert('Разрешите доступ к микрофону в настройках браузера');
+            } else if (event.error === 'network') {
+                alert('Ошибка сети. Проверьте интернет-соединение');
+            }
+            if (isRecording) {
+                recognition.stop();
+            }
         };
     }
 
-    voiceBtn.addEventListener('click', () => {
-        if (!recognition) {
-            alert('Голосовой ввод не поддерживается в этом браузере');
-            return;
-        }
-        if (voiceBtn.classList.contains('recording')) {
-            recognition.stop();
-        } else {
-            recognition.start();
-        }
-    });
+    if (voiceBtn) {
+        voiceBtn.addEventListener('click', () => {
+            if (!recognition) {
+                alert('Голосовой ввод не поддерживается в этом браузере');
+                return;
+            }
+            
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                accumulatedText = '';
+                if (messageInput) messageInput.value = '';
+                recognition.start();
+            }
+        });
+    }
 
-    sendBtn.addEventListener('click', () => {
-        const text = messageInput.value.trim();
-        if (text) {
-            sendMessage(text);
-            messageInput.value = '';
-        }
-    });
+    if (sendBtn) {
+        sendBtn.addEventListener('click', () => {
+            if (messageInput) {
+                const text = messageInput.value.trim();
+                if (text) {
+                    sendMessage(text);
+                    messageInput.value = '';
+                    accumulatedText = '';
+                }
+            }
+        });
+    }
 
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendBtn.click();
-        }
-    });
+    if (messageInput) {
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && sendBtn) {
+                sendBtn.click();
+            }
+        });
+    }
 
     function escapeHtml(str) {
+        if (!str) return '';
         return str.replace(/[&<>]/g, function(m) {
             if (m === '&') return '&amp;';
             if (m === '<') return '&lt;';
             if (m === '>') return '&gt;';
             return m;
-        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
-            return c;
-        });
+        }).replace(/\n/g, '<br>');
     }
 
-    // Запуск
     initSpeech();
-    // Если уже залогинены, подписка сработает через onAuthStateChanged
 </script>
 </body>
 </html>
