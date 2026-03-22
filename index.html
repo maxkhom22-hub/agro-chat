@@ -203,7 +203,7 @@
 </head>
 <body>
 <div class="app" id="app">
-    <div class="chat-header">🌾 Агрофарм — заказы</div>
+    <div class="chat-header">🌾 Агрофарм — заказы </div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1;">
         <div class="user-info" id="user-info"></div>
@@ -227,7 +227,6 @@
         appId: "1:1085969254349:web:199f1971921b2686102684"
     };
 
-    // Инициализация Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
@@ -412,52 +411,93 @@
         });
     }
 
-    // Функция разбивки на пункты
+    // ========== НОВАЯ ФУНКЦИЯ РАЗБИВКИ НА ПУНКТЫ ==========
+    // Распознаёт и слова (первый, второй), и цифры (1, 2)
     function formatOrderText(text) {
-        // Ищем слова "первый", "второй", "третий" и т.д.
-        const patterns = [
-            { pattern: /(?:первый|1-й|1\))/i, num: '1' },
-            { pattern: /(?:второй|2-й|2\))/i, num: '2' },
-            { pattern: /(?:третий|3-й|3\))/i, num: '3' },
-            { pattern: /(?:четвертый|4-й|4\))/i, num: '4' },
-            { pattern: /(?:пятый|5-й|5\))/i, num: '5' },
-            { pattern: /(?:шестой|6-й|6\))/i, num: '6' },
-            { pattern: /(?:седьмой|7-й|7\))/i, num: '7' },
-            { pattern: /(?:восьмой|8-й|8\))/i, num: '8' },
-            { pattern: /(?:девятый|9-й|9\))/i, num: '9' },
-            { pattern: /(?:десятый|10-й|10\))/i, num: '10' }
+        // Сначала проверяем, есть ли в тексте что-то похожее на пункты
+        const hasNumbers = /(\d+)\s+/.test(text);
+        const hasWords = /(первый|второй|третий|четвертый|пятый|шестой|седьмой|восьмой|девятый|десятый)/i.test(text);
+        
+        // Если нет ни цифр, ни слов-маркеров — возвращаем как есть
+        if (!hasNumbers && !hasWords) {
+            return text;
+        }
+        
+        let result = text;
+        
+        // 1. Обрабатываем цифры: "холдинг 1 шприцы 2 антибиотики"
+        // Превращаем в "холдинг\n1) шприцы\n2) антибиотики"
+        let processedByNumbers = '';
+        const parts = result.split(/(\d+)/);
+        let currentNumber = 1;
+        
+        // Если есть отдельные цифры
+        if (hasNumbers) {
+            let newParts = [];
+            for (let i = 0; i < parts.length; i++) {
+                if (/^\d+$/.test(parts[i])) {
+                    // Это цифра — делаем из неё пункт
+                    newParts.push(`\n${parts[i]})`);
+                } else {
+                    // Это текст — добавляем как есть
+                    if (parts[i].trim()) {
+                        newParts.push(parts[i]);
+                    }
+                }
+            }
+            processedByNumbers = newParts.join('').trim();
+            result = processedByNumbers;
+        }
+        
+        // 2. Обрабатываем слова "первый", "второй" и т.д.
+        const wordPatterns = [
+            { pattern: /первый/gi, num: '1' },
+            { pattern: /второй/gi, num: '2' },
+            { pattern: /третий/gi, num: '3' },
+            { pattern: /четвертый/gi, num: '4' },
+            { pattern: /пятый/gi, num: '5' },
+            { pattern: /шестой/gi, num: '6' },
+            { pattern: /седьмой/gi, num: '7' },
+            { pattern: /восьмой/gi, num: '8' },
+            { pattern: /девятый/gi, num: '9' },
+            { pattern: /десятый/gi, num: '10' }
         ];
         
-        let hasMarker = false;
-        for (const p of patterns) {
-            if (p.pattern.test(text)) {
-                hasMarker = true;
-                break;
+        let processedByWords = result;
+        let currentNum = 1;
+        
+        for (const p of wordPatterns) {
+            if (processedByWords.match(p.pattern)) {
+                processedByWords = processedByWords.replace(p.pattern, `\n${currentNum})`);
+                currentNum++;
             }
         }
         
-        if (!hasMarker) return text;
-        
-        let result = text;
-        let currentNum = 1;
-        
-        for (const p of patterns) {
-            result = result.replace(p.pattern, `\n${currentNum++})`);
+        // Выбираем тот вариант, который изменился больше
+        if (processedByWords !== result && processedByWords.includes('\n')) {
+            result = processedByWords;
+        } else if (processedByNumbers !== text && processedByNumbers.includes('\n')) {
+            result = processedByNumbers;
         }
         
-        // Очищаем и форматируем
+        // Очищаем лишние переносы и форматируем
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         
-        // Добавляем пробел после номера, если нужно
+        // Добавляем пробел после номера, если нет
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
         
-        return result;
+        // Если в результате есть переносы строк — значит есть пункты
+        if (result.includes('\n')) {
+            return result;
+        }
+        
+        return text;
     }
 
-    // ========== ГОЛОСОВОЙ ВВОД (ТОЛЬКО ПО КНОПКЕ) ==========
+    // ========== ГОЛОСОВОЙ ВВОД ==========
     let recognition = null;
     let isRecording = false;
-    let finalTranscript = ''; // накопленный текст
+    let finalTranscript = '';
     
     const voiceBtn = document.getElementById('voiceBtn');
     const messageInput = document.getElementById('messageInput');
@@ -476,8 +516,8 @@
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
-        recognition.interimResults = false; // только финальные результаты (чище)
-        recognition.continuous = true; // не останавливается после паузы
+        recognition.interimResults = false;
+        recognition.continuous = true;
         
         recognition.onstart = () => {
             isRecording = true;
