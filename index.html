@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Агрофирма: голосовые заказы</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            margin: 0;
+            background: #e5e7eb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .app {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -10px rgba(0,0,0,0.2);
+            overflow: hidden;
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+        .chat-header {
+            background: #2c5f2d;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f9fafb;
+        }
+        .message {
+            background: white;
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border-left: 5px solid #ccc;
+            transition: 0.1s;
+        }
+        .message.completed {
+            background: #d1fae5;
+            border-left-color: #10b981;
+        }
+        .message-text {
+            font-size: 1rem;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+        .message-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #6b7280;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .complete-btn {
+            background: #10b981;
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .complete-btn:hover {
+            background: #059669;
+        }
+        .input-area {
+            padding: 16px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .voice-btn {
+            background: #3b82f6;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.1s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .voice-btn.recording {
+            background: #ef4444;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 30px;
+            font-size: 1rem;
+            outline: none;
+        }
+        .send-btn {
+            background: #2c5f2d;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .auth-panel {
+            padding: 20px;
+            text-align: center;
+            background: #f3f4f6;
+        }
+        .login-input {
+            padding: 10px;
+            margin: 8px;
+            border-radius: 30px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background: #2c5f2d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        .logout-btn {
+            background: #6b7280;
+            margin-top: 8px;
+        }
+        .user-info {
+            font-size: 0.8rem;
+            padding: 8px 16px;
+            background: #eef2ff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+<div class="app" id="app">
+    <div class="chat-header">🌾 Агрофирма — заказы (голосом)</div>
+    <div id="auth-container"></div>
+    <div id="chat-container" style="display: none; flex-direction: column; flex: 1;">
+        <div class="user-info" id="user-info"></div>
+        <div class="messages" id="messages-list"></div>
+        <div class="input-area">
+            <button class="voice-btn" id="voiceBtn">🎤</button>
+            <input type="text" id="messageInput" class="message-input" placeholder="Или введите текст заказа...">
+            <button class="send-btn" id="sendBtn">Отправить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ======================== КОНФИГУРАЦИЯ FIREBASE ========================
+    // ЗАМЕНИТЕ ЭТИ ДАННЫЕ НА ВАШИ ИЗ ПРОЕКТА FIREBASE
+    const firebaseConfig = {
+        apiKey: "AIzaSyDEJMFF6XkYzIVCWkh4WD6InZGINTjgwuc",
+        authDomain: "agrochat-e5b53.firebaseapp.com",
+        projectId: "agrochat-e5b53",
+        storageBucket: "agrochat-e5b53.firebasestorage.app",
+        messagingSenderId: "1085969254349",
+        appId: "1:1085969254349:web:199f1971921b2686102684"
+    };
+
+    // Инициализация Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Коллекция сообщений
+    const ordersRef = db.collection('orders');
+
+    // DOM элементы
+    let currentUser = null;
+
+    function renderAuth() {
+        const container = document.getElementById('auth-container');
+        const chatContainer = document.getElementById('chat-container');
+        if (!currentUser) {
+            container.style.display = 'block';
+            chatContainer.style.display = 'none';
+            container.innerHTML = `
+                <div class="auth-panel">
+                    <h3>Вход для сотрудников</h3>
+                    <input type="email" id="loginEmail" class="login-input" placeholder="Email">
+                    <input type="password" id="loginPassword" class="login-input" placeholder="Пароль">
+                    <button id="loginBtn">Войти</button>
+                    <hr>
+                    <p style="font-size:0.8rem;">Нет аккаунта? Создайте тестовый:</p>
+                    <button id="registerBtn">Зарегистрироваться</button>
+                </div>
+            `;
+            document.getElementById('loginBtn')?.addEventListener('click', () => {
+                const email = document.getElementById('loginEmail').value;
+                const pwd = document.getElementById('loginPassword').value;
+                auth.signInWithEmailAndPassword(email, pwd).catch(err => alert(err.message));
+            });
+            document.getElementById('registerBtn')?.addEventListener('click', () => {
+                const email = document.getElementById('loginEmail').value;
+                const pwd = document.getElementById('loginPassword').value;
+                if (!email || !pwd) return alert('Введите email и пароль');
+                auth.createUserWithEmailAndPassword(email, pwd).catch(err => alert(err.message));
+            });
+        } else {
+            container.style.display = 'none';
+            chatContainer.style.display = 'flex';
+            document.getElementById('user-info').innerHTML = `
+                <span>👤 ${currentUser.email}</span>
+                <button class="logout-btn" id="logoutBtn">Выйти</button>
+            `;
+            document.getElementById('logoutBtn')?.addEventListener('click', () => auth.signOut());
+        }
+    }
+
+    auth.onAuthStateChanged(user => {
+        currentUser = user;
+        renderAuth();
+        if (user) {
+            // Загружаем сообщения
+            listenMessages();
+        }
+    });
+
+    // Функция отображения сообщений
+    let unsubscribeMessages = null;
+    function listenMessages() {
+        if (unsubscribeMessages) unsubscribeMessages();
+        unsubscribeMessages = ordersRef.orderBy('timestamp', 'asc').onSnapshot(snapshot => {
+            const messagesDiv = document.getElementById('messages-list');
+            messagesDiv.innerHTML = '';
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const messageId = doc.id;
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${data.status === 'completed' ? 'completed' : ''}`;
+                messageDiv.innerHTML = `
+                    <div class="message-text">${escapeHtml(data.text)}</div>
+                    <div class="message-meta">
+                        <span>📅 ${new Date(data.timestamp?.toDate()).toLocaleString()}</span>
+                        <span>👤 ${data.authorEmail || '?'}</span>
+                        ${data.status !== 'completed' ? `<button class="complete-btn" data-id="${messageId}">✅ Выполнено</button>` : '<span style="color:#10b981;">✔ Выполнен</span>'}
+                    </div>
+                `;
+                messagesDiv.appendChild(messageDiv);
+            });
+            // Добавляем обработчики на кнопки "Выполнено"
+            document.querySelectorAll('.complete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = btn.getAttribute('data-id');
+                    await ordersRef.doc(id).update({ status: 'completed' });
+                });
+            });
+            // Прокрутка вниз
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+    }
+
+    // Отправка текстового сообщения
+    async function sendMessage(text) {
+        if (!text.trim() || !currentUser) return;
+        await ordersRef.add({
+            text: text.trim(),
+            authorEmail: currentUser.email,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            status: 'active'
+        });
+    }
+
+    // Голосовой ввод (Web Speech API)
+    let recognition = null;
+    const voiceBtn = document.getElementById('voiceBtn');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    function initSpeech() {
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            voiceBtn.disabled = true;
+            voiceBtn.title = "Ваш браузер не поддерживает голосовой ввод";
+            return;
+        }
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ru-RU';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+            voiceBtn.classList.add('recording');
+        };
+        recognition.onend = () => {
+            voiceBtn.classList.remove('recording');
+        };
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            messageInput.value = transcript;
+        };
+        recognition.onerror = (event) => {
+            console.error('Speech error', event.error);
+            voiceBtn.classList.remove('recording');
+            alert('Ошибка распознавания: ' + event.error);
+        };
+    }
+
+    voiceBtn.addEventListener('click', () => {
+        if (!recognition) {
+            alert('Голосовой ввод не поддерживается в этом браузере');
+            return;
+        }
+        if (voiceBtn.classList.contains('recording')) {
+            recognition.stop();
+        } else {
+            recognition.start();
+        }
+    });
+
+    sendBtn.addEventListener('click', () => {
+        const text = messageInput.value.trim();
+        if (text) {
+            sendMessage(text);
+            messageInput.value = '';
+        }
+    });
+
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendBtn.click();
+        }
+    });
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+            return c;
+        });
+    }
+
+    // Запуск
+    initSpeech();
+    // Если уже залогинены, подписка сработает через onAuthStateChanged
+</script>
+</body>
+</html>
