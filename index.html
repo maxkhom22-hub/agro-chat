@@ -4,47 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Агрофирма: голосовые заказы</title>
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
         * {
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
         }
         body {
-            margin: 0;
             background: #e5e7eb;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
         }
         .app {
             max-width: 800px;
             width: 100%;
+            height: 95vh;
             background: white;
             border-radius: 28px;
             box-shadow: 0 20px 35px -10px rgba(0,0,0,0.2);
-            overflow: hidden;
-            margin: 20px;
             display: flex;
             flex-direction: column;
-            height: 90vh;
+            overflow: hidden;
+            margin: 10px;
         }
         .chat-header {
             background: #2c5f2d;
             color: white;
-            padding: 20px;
+            padding: 16px 20px;
             font-weight: bold;
-            font-size: 1.3rem;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            font-size: 1.2rem;
             text-align: center;
+            flex-shrink: 0;
         }
         .messages {
             flex: 1;
@@ -57,174 +55,117 @@
         }
         .message {
             background: white;
-            border-radius: 20px;
-            padding: 12px 16px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            border-left: 5px solid #ccc;
-            transition: 0.1s;
+            border-radius: 16px;
+            padding: 10px 14px;
+            border-left: 4px solid #ccc;
         }
         .message.completed {
             background: #d1fae5;
             border-left-color: #10b981;
         }
         .message-text {
-            font-size: 1rem;
-            margin-bottom: 8px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
             word-break: break-word;
-            white-space: pre-line;
-        }
-        .message-text.editing {
-            display: none;
-        }
-        .edit-textarea {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #10b981;
-            border-radius: 16px;
-            font-size: 1rem;
-            font-family: inherit;
-            resize: vertical;
-            margin-bottom: 8px;
-        }
-        .edit-actions {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-        .save-edit-btn {
-            background: #10b981;
-            border: none;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .cancel-edit-btn {
-            background: #6b7280;
-            border: none;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            cursor: pointer;
         }
         .message-meta {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #6b7280;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
             margin-top: 8px;
         }
         .message-actions {
             display: flex;
-            gap: 8px;
-            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
         }
-        .complete-btn {
-            background: #10b981;
+        .complete-btn, .undo-btn, .delete-btn, .edit-btn, .save-edit-btn, .cancel-edit-btn {
             border: none;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 30px;
+            padding: 4px 10px;
+            border-radius: 20px;
             font-size: 0.7rem;
             font-weight: bold;
             cursor: pointer;
         }
-        .undo-btn {
-            background: #f59e0b;
-            border: none;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .delete-btn {
-            background: #ef4444;
-            border: none;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .edit-btn {
-            background: #3b82f6;
-            border: none;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            cursor: pointer;
+        .complete-btn { background: #10b981; color: white; }
+        .undo-btn { background: #f59e0b; color: white; }
+        .delete-btn { background: #ef4444; color: white; }
+        .edit-btn { background: #3b82f6; color: white; }
+        .save-edit-btn { background: #10b981; color: white; }
+        .cancel-edit-btn { background: #6b7280; color: white; }
+        .edit-textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #10b981;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            margin-bottom: 8px;
         }
         .input-area {
-            padding: 16px;
+            padding: 12px;
             background: white;
             border-top: 1px solid #e2e8f0;
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: flex-end;
-            flex-wrap: wrap;
+            flex-shrink: 0;
         }
         .voice-btn {
             background: #3b82f6;
             border: none;
             color: white;
-            font-size: 1.5rem;
-            width: 48px;
-            height: 48px;
+            font-size: 1.3rem;
+            width: 44px;
+            height: 44px;
             border-radius: 30px;
             cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
             flex-shrink: 0;
-            transition: 0.1s;
         }
         .voice-btn.recording {
             background: #ef4444;
             animation: pulse 1s infinite;
         }
         @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
         .message-input {
             flex: 1;
-            padding: 12px 16px;
+            padding: 10px 14px;
             border: 1px solid #d1d5db;
-            border-radius: 20px;
-            font-size: 1rem;
+            border-radius: 24px;
+            font-size: 0.95rem;
             outline: none;
-            resize: vertical;
+            resize: none;
             font-family: inherit;
-            min-height: 48px;
-            max-height: 150px;
+            min-height: 44px;
+            max-height: 100px;
         }
         .send-btn {
             background: #2c5f2d;
             border: none;
             color: white;
-            padding: 10px 20px;
+            padding: 10px 18px;
             border-radius: 30px;
             font-weight: bold;
             cursor: pointer;
-            height: 48px;
+            flex-shrink: 0;
         }
         .auth-panel {
             padding: 20px;
             text-align: center;
             background: #f3f4f6;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
         .login-input {
             padding: 10px;
@@ -232,18 +173,7 @@
             border-radius: 30px;
             border: 1px solid #ccc;
             width: 80%;
-            max-width: 300px;
-        }
-        button {
-            background: #2c5f2d;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 30px;
-            cursor: pointer;
-        }
-        .logout-btn {
-            background: #6b7280;
+            max-width: 280px;
         }
         .user-info {
             font-size: 0.8rem;
@@ -252,17 +182,26 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0;
         }
         .user-name {
             font-weight: bold;
             color: #2c5f2d;
         }
-        .edit-name-btn {
+        .edit-name-btn, .logout-btn {
             background: none;
             border: none;
-            font-size: 0.8rem;
             cursor: pointer;
-            padding: 2px 8px;
+            padding: 4px 8px;
+        }
+        .logout-btn {
+            background: #6b7280;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.7rem;
+        }
+        button {
+            cursor: pointer;
         }
         hr {
             margin: 15px 0;
@@ -270,22 +209,21 @@
     </style>
 </head>
 <body>
-<div class="app" id="app">
+<div class="app">
     <div class="chat-header">🌾 Агрофарм — заказы</div>
     <div id="auth-container"></div>
-    <div id="chat-container" style="display: none; flex-direction: column; flex: 1;">
+    <div id="chat-container" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
         <div class="user-info" id="user-info"></div>
         <div class="messages" id="messages-list"></div>
         <div class="input-area">
             <button class="voice-btn" id="voiceBtn">🎤</button>
-            <textarea id="messageInput" class="message-input" rows="1" placeholder="Надиктуйте или введите заказ..."></textarea>
+            <textarea id="messageInput" class="message-input" rows="1" placeholder="Напишите или надиктуйте заказ..."></textarea>
             <button class="send-btn" id="sendBtn">Отправить</button>
         </div>
     </div>
 </div>
 
 <script>
-    // ======================== КОНФИГУРАЦИЯ FIREBASE ========================
     const firebaseConfig = {
         apiKey: "AIzaSyDEJMFF6XkYzIVCWkh4WD6InZGINTjgwuc",
         authDomain: "agrochat-e5b53.firebaseapp.com",
@@ -304,13 +242,11 @@
 
     let currentUser = null;
     let currentUserName = '';
+    let editingMessageId = null;
 
     async function getUserName(userId) {
         const doc = await usersRef.doc(userId).get();
-        if (doc.exists) {
-            return doc.data().name;
-        }
-        return null;
+        return doc.exists ? doc.data().name : null;
     }
 
     async function setUserName(userId, name) {
@@ -321,35 +257,24 @@
         const container = document.getElementById('auth-container');
         const chatContainer = document.getElementById('chat-container');
         if (!currentUser) {
-            container.style.display = 'block';
+            container.style.display = 'flex';
             chatContainer.style.display = 'none';
             container.innerHTML = `
                 <div class="auth-panel">
                     <h3>👋 Вход для сотрудников</h3>
-                    <input type="text" id="regName" class="login-input" placeholder="Ваше имя (например, Иван)">
-                    <input type="email" id="loginEmail" class="login-input" placeholder="Email">
-                    <input type="password" id="loginPassword" class="login-input" placeholder="Пароль">
+                    <input type="text" id="regName" placeholder="Ваше имя" class="login-input">
+                    <input type="email" id="loginEmail" placeholder="Email" class="login-input">
+                    <input type="password" id="loginPassword" placeholder="Пароль" class="login-input">
                     <button id="registerBtn">📝 Зарегистрироваться</button>
                     <hr>
-                    <p style="font-size:0.8rem;">Уже есть аккаунт?</p>
                     <button id="loginBtn">🔑 Войти</button>
                 </div>
             `;
-            
             document.getElementById('registerBtn')?.addEventListener('click', async () => {
                 const name = document.getElementById('regName').value.trim();
                 const email = document.getElementById('loginEmail').value;
                 const pwd = document.getElementById('loginPassword').value;
-                
-                if (!name) {
-                    alert('Введите ваше имя');
-                    return;
-                }
-                if (!email || !pwd) {
-                    alert('Введите email и пароль');
-                    return;
-                }
-                
+                if (!name || !email || !pwd) return alert('Заполните все поля');
                 try {
                     const userCredential = await auth.createUserWithEmailAndPassword(email, pwd);
                     await setUserName(userCredential.user.uid, name);
@@ -358,7 +283,6 @@
                     alert('Ошибка: ' + err.message);
                 }
             });
-            
             document.getElementById('loginBtn')?.addEventListener('click', () => {
                 const email = document.getElementById('loginEmail').value;
                 const pwd = document.getElementById('loginPassword').value;
@@ -367,13 +291,8 @@
         } else {
             container.style.display = 'none';
             chatContainer.style.display = 'flex';
-            
             getUserName(currentUser.uid).then(name => {
-                if (name) {
-                    currentUserName = name;
-                } else {
-                    currentUserName = currentUser.email.split('@')[0];
-                }
+                currentUserName = name || currentUser.email.split('@')[0];
                 document.getElementById('user-info').innerHTML = `
                     <span>👤 <span class="user-name">${escapeHtml(currentUserName)}</span>
                         <button class="edit-name-btn" id="editNameBtn">✏️</button>
@@ -382,7 +301,7 @@
                 `;
                 document.getElementById('editNameBtn')?.addEventListener('click', () => {
                     const newName = prompt('Введите ваше имя:', currentUserName);
-                    if (newName && newName.trim()) {
+                    if (newName?.trim()) {
                         setUserName(currentUser.uid, newName.trim());
                         currentUserName = newName.trim();
                         location.reload();
@@ -396,54 +315,36 @@
     auth.onAuthStateChanged(user => {
         currentUser = user;
         renderAuth();
-        if (user) {
-            listenMessages();
-        }
+        if (user) listenMessages();
     });
 
-    // Храним состояния редактирования
-    let editingMessageId = null;
+    function autoScroll() {
+        const messagesDiv = document.getElementById('messages-list');
+        if (messagesDiv) messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
 
     function listenMessages() {
         if (window.unsubscribeMessages) window.unsubscribeMessages();
         window.unsubscribeMessages = ordersRef.orderBy('timestamp', 'asc').onSnapshot(async snapshot => {
             const messagesDiv = document.getElementById('messages-list');
-            messagesDiv.innerHTML = '';
+            if (!messagesDiv) return;
             
+            messagesDiv.innerHTML = '';
             for (const doc of snapshot.docs) {
                 const data = doc.data();
                 const messageId = doc.id;
-                
-                let authorName = data.authorName || data.authorEmail;
-                if (data.authorId && !data.authorName) {
-                    const userName = await getUserName(data.authorId);
-                    if (userName) authorName = userName;
-                }
-                
+                const authorName = data.authorName || data.authorEmail;
                 const isAuthor = currentUser && data.authorId === currentUser.uid;
                 const isCompleted = data.status === 'completed';
                 const isEditing = editingMessageId === messageId;
                 
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${isCompleted ? 'completed' : ''}`;
-                messageDiv.id = `msg-${messageId}`;
-                
-                let actionsHtml = '';
-                if (!isCompleted) {
-                    actionsHtml += `<button class="complete-btn" data-id="${messageId}">✅ Выполнено</button>`;
-                } else {
-                    actionsHtml += `<button class="undo-btn" data-id="${messageId}">↩ Отменить</button>`;
-                }
-                
-                if (isAuthor) {
-                    actionsHtml += `<button class="edit-btn" data-id="${messageId}">✏️ Редактировать</button>`;
-                    actionsHtml += `<button class="delete-btn" data-id="${messageId}">🗑 Удалить</button>`;
-                }
                 
                 if (isEditing) {
                     messageDiv.innerHTML = `
                         <textarea id="edit-${messageId}" class="edit-textarea" rows="3">${escapeHtmlForEdit(data.text)}</textarea>
-                        <div class="edit-actions">
+                        <div style="display:flex; gap:8px;">
                             <button class="save-edit-btn" data-id="${messageId}">💾 Сохранить</button>
                             <button class="cancel-edit-btn" data-id="${messageId}">✖ Отмена</button>
                         </div>
@@ -453,90 +354,58 @@
                         </div>
                     `;
                 } else {
+                    let actionsHtml = '';
+                    if (!isCompleted) actionsHtml += `<button class="complete-btn" data-id="${messageId}">✅ Выполнено</button>`;
+                    else actionsHtml += `<button class="undo-btn" data-id="${messageId}">↩ Отменить</button>`;
+                    if (isAuthor) {
+                        actionsHtml += `<button class="edit-btn" data-id="${messageId}">✏️ Редактировать</button>`;
+                        actionsHtml += `<button class="delete-btn" data-id="${messageId}">🗑 Удалить</button>`;
+                    }
                     messageDiv.innerHTML = `
                         <div class="message-text">${escapeHtml(data.text)}</div>
                         <div class="message-meta">
                             <span>📅 ${new Date(data.timestamp?.toDate()).toLocaleString()}</span>
                             <span>👤 ${escapeHtml(authorName)}</span>
-                            <div class="message-actions">
-                                ${actionsHtml}
-                            </div>
+                            <div class="message-actions">${actionsHtml}</div>
                         </div>
                     `;
                 }
                 messagesDiv.appendChild(messageDiv);
             }
             
-            // Кнопка "Выполнено"
-            document.querySelectorAll('.complete-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const id = btn.getAttribute('data-id');
-                    await ordersRef.doc(id).update({ status: 'completed' });
-                });
-            });
+            document.querySelectorAll('.complete-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                await ordersRef.doc(btn.getAttribute('data-id')).update({ status: 'completed' });
+            }));
+            document.querySelectorAll('.undo-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                await ordersRef.doc(btn.getAttribute('data-id')).update({ status: 'active' });
+            }));
+            document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                if (confirm('Удалить заказ?')) await ordersRef.doc(btn.getAttribute('data-id')).delete();
+            }));
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', (e) => {
+                editingMessageId = btn.getAttribute('data-id');
+                listenMessages();
+            }));
+            document.querySelectorAll('.save-edit-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                const id = btn.getAttribute('data-id');
+                const newText = document.getElementById(`edit-${id}`).value.trim();
+                if (newText) await ordersRef.doc(id).update({ text: formatOrderText(newText) });
+                editingMessageId = null;
+                listenMessages();
+            }));
+            document.querySelectorAll('.cancel-edit-btn').forEach(btn => btn.addEventListener('click', (e) => {
+                editingMessageId = null;
+                listenMessages();
+            }));
             
-            // Кнопка "Отменить"
-            document.querySelectorAll('.undo-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const id = btn.getAttribute('data-id');
-                    await ordersRef.doc(id).update({ status: 'active' });
-                });
-            });
-            
-            // Кнопка "Удалить"
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const id = btn.getAttribute('data-id');
-                    if (confirm('Удалить этот заказ?')) {
-                        await ordersRef.doc(id).delete();
-                    }
-                });
-            });
-            
-            // Кнопка "Редактировать"
-            document.querySelectorAll('.edit-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const id = btn.getAttribute('data-id');
-                    editingMessageId = id;
-                    listenMessages(); // перерисовываем
-                });
-            });
-            
-            // Кнопка "Сохранить"
-            document.querySelectorAll('.save-edit-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const id = btn.getAttribute('data-id');
-                    const textarea = document.getElementById(`edit-${id}`);
-                    const newText = textarea.value.trim();
-                    if (newText) {
-                        const formattedText = formatOrderText(newText);
-                        await ordersRef.doc(id).update({ text: formattedText });
-                    }
-                    editingMessageId = null;
-                    listenMessages(); // перерисовываем
-                });
-            });
-            
-            // Кнопка "Отмена"
-            document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const id = btn.getAttribute('data-id');
-                    if (editingMessageId === id) {
-                        editingMessageId = null;
-                        listenMessages(); // перерисовываем
-                    }
-                });
-            });
-            
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            autoScroll();
         });
     }
 
     async function sendMessage(text) {
         if (!text.trim() || !currentUser) return;
-        const formattedText = formatOrderText(text.trim());
         await ordersRef.add({
-            text: formattedText,
+            text: formatOrderText(text.trim()),
             authorId: currentUser.uid,
             authorName: currentUserName,
             authorEmail: currentUser.email,
@@ -545,88 +414,50 @@
         });
     }
 
-    // Функция разбивки на пункты
     function formatOrderText(text) {
         const hasNumbers = /(\d+)\s+/.test(text);
         const hasWords = /(первый|второй|третий|четвертый|пятый|шестой|седьмой|восьмой|девятый|десятый)/i.test(text);
-        
-        if (!hasNumbers && !hasWords) {
-            return text;
-        }
+        if (!hasNumbers && !hasWords) return text;
         
         let result = text;
-        
         if (hasNumbers) {
             const parts = result.split(/(\d+)/);
             let newParts = [];
             for (let i = 0; i < parts.length; i++) {
-                if (/^\d+$/.test(parts[i])) {
-                    newParts.push(`\n${parts[i]})`);
-                } else {
-                    if (parts[i].trim()) {
-                        newParts.push(parts[i]);
-                    }
-                }
+                if (/^\d+$/.test(parts[i])) newParts.push(`\n${parts[i]})`);
+                else if (parts[i].trim()) newParts.push(parts[i]);
             }
             result = newParts.join('').trim();
         }
         
-        const wordPatterns = [
-            { pattern: /первый/gi, num: '1' },
-            { pattern: /второй/gi, num: '2' },
-            { pattern: /третий/gi, num: '3' },
-            { pattern: /четвертый/gi, num: '4' },
-            { pattern: /пятый/gi, num: '5' },
-            { pattern: /шестой/gi, num: '6' },
-            { pattern: /седьмой/gi, num: '7' },
-            { pattern: /восьмой/gi, num: '8' },
-            { pattern: /девятый/gi, num: '9' },
-            { pattern: /десятый/gi, num: '10' }
-        ];
-        
-        let processedByWords = result;
-        let currentNum = 1;
-        
-        for (const p of wordPatterns) {
-            if (processedByWords.match(p.pattern)) {
-                processedByWords = processedByWords.replace(p.pattern, `\n${currentNum})`);
-                currentNum++;
+        const words = ['первый','второй','третий','четвертый','пятый','шестой','седьмой','восьмой','девятый','десятый'];
+        let num = 1;
+        for (const word of words) {
+            const regex = new RegExp(word, 'gi');
+            if (regex.test(result)) {
+                result = result.replace(regex, `\n${num})`);
+                num++;
             }
-        }
-        
-        if (processedByWords !== result && processedByWords.includes('\n')) {
-            result = processedByWords;
         }
         
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
-        
-        if (result.includes('\n')) {
-            return result;
-        }
-        
-        return text;
+        return result.includes('\n') ? result : text;
     }
 
-    // ========== ГОЛОСОВОЙ ВВОД ==========
+    // Голосовой ввод
     let recognition = null;
     let isRecording = false;
     let finalTranscript = '';
-    
     const voiceBtn = document.getElementById('voiceBtn');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
 
     function initSpeech() {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            if (voiceBtn) {
-                voiceBtn.disabled = true;
-                voiceBtn.title = "Ваш браузер не поддерживает голосовой ввод";
-                voiceBtn.style.opacity = '0.5';
-            }
+            if (voiceBtn) voiceBtn.style.opacity = '0.5';
             return;
         }
-        
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
@@ -639,85 +470,43 @@
                 voiceBtn.classList.add('recording');
                 voiceBtn.textContent = '⏹️';
             }
-            if (messageInput) {
-                messageInput.placeholder = '🎙️ Идёт запись... нажмите 🎤 ещё раз, чтобы остановить';
-            }
         };
-        
         recognition.onend = () => {
             isRecording = false;
             if (voiceBtn) {
                 voiceBtn.classList.remove('recording');
                 voiceBtn.textContent = '🎤';
             }
-            if (messageInput) {
-                messageInput.placeholder = 'Надиктуйте или введите заказ...';
-            }
-            
             if (finalTranscript.trim() && messageInput) {
                 messageInput.value = finalTranscript.trim();
                 finalTranscript = '';
-                autoResizeTextarea(messageInput);
+                autoResize(messageInput);
             }
         };
-        
         recognition.onresult = (event) => {
             let newText = '';
             for (let i = 0; i < event.results.length; i++) {
-                if (event.results[i].isFinal) {
-                    newText += event.results[i][0].transcript + ' ';
-                }
+                if (event.results[i].isFinal) newText += event.results[i][0].transcript + ' ';
             }
-            
             if (newText) {
                 finalTranscript += newText;
-                if (messageInput) {
-                    messageInput.value = finalTranscript.trim();
-                    autoResizeTextarea(messageInput);
-                }
+                if (messageInput) messageInput.value = finalTranscript.trim();
             }
         };
-        
-        recognition.onerror = (event) => {
-            console.error('Speech error:', event.error);
-            let errorMsg = '';
-            switch(event.error) {
-                case 'not-allowed':
-                    errorMsg = 'Разрешите доступ к микрофону в настройках браузера';
-                    break;
-                case 'network':
-                    errorMsg = 'Ошибка сети. Проверьте интернет';
-                    break;
-                case 'audio-capture':
-                    errorMsg = 'Микрофон не найден. Подключите микрофон';
-                    break;
-                default:
-                    errorMsg = 'Ошибка: ' + event.error;
-            }
-            alert(errorMsg);
-            
-            if (isRecording) {
-                try { recognition.stop(); } catch(e) {}
-            }
-        };
+        recognition.onerror = () => { if (isRecording) recognition.stop(); };
     }
     
-    function autoResizeTextarea(textarea) {
+    function autoResize(textarea) {
         if (!textarea) return;
         textarea.style.height = 'auto';
-        textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+        textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
     
     if (voiceBtn) {
         voiceBtn.addEventListener('click', () => {
-            if (!recognition) {
-                alert('Голосовой ввод не поддерживается в этом браузере.\n\nРекомендуем использовать:\n- Google Chrome на Android\n- Safari на iPhone\n- Chrome на компьютере');
-                return;
-            }
-            
-            if (isRecording) {
-                recognition.stop();
-            } else {
+            if (!recognition) return alert('Голосовой ввод не поддерживается');
+            if (isRecording) recognition.stop();
+            else {
                 finalTranscript = '';
                 if (messageInput) messageInput.value = '';
                 recognition.start();
@@ -727,45 +516,29 @@
     
     if (sendBtn) {
         sendBtn.addEventListener('click', () => {
-            if (messageInput) {
-                const text = messageInput.value.trim();
-                if (text) {
-                    sendMessage(text);
-                    messageInput.value = '';
-                    autoResizeTextarea(messageInput);
-                    finalTranscript = '';
-                }
+            if (messageInput?.value.trim()) {
+                sendMessage(messageInput.value);
+                messageInput.value = '';
+                autoResize(messageInput);
+                finalTranscript = '';
             }
         });
     }
     
     if (messageInput) {
         messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    if (sendBtn) sendBtn.click();
-                } else {
-                    setTimeout(() => autoResizeTextarea(messageInput), 0);
-                }
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                if (sendBtn) sendBtn.click();
             }
         });
-        
-        messageInput.addEventListener('input', () => {
-            autoResizeTextarea(messageInput);
-        });
+        messageInput.addEventListener('input', () => autoResize(messageInput));
     }
     
     function escapeHtml(str) {
         if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        }).replace(/\n/g, '<br>');
+        return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;').replace(/\n/g, '<br>');
     }
-    
     function escapeHtmlForEdit(str) {
         if (!str) return '';
         return str.replace(/<br>/g, '\n');
