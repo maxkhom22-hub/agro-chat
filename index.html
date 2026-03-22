@@ -73,6 +73,44 @@
             word-break: break-word;
             white-space: pre-line;
         }
+        .message-text.editing {
+            display: none;
+        }
+        .edit-textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #10b981;
+            border-radius: 16px;
+            font-size: 1rem;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 8px;
+        }
+        .edit-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .save-edit-btn {
+            background: #10b981;
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .cancel-edit-btn {
+            background: #6b7280;
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
         .message-meta {
             display: flex;
             justify-content: space-between;
@@ -110,6 +148,16 @@
         }
         .delete-btn {
             background: #ef4444;
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .edit-btn {
+            background: #3b82f6;
             border: none;
             color: white;
             padding: 4px 12px;
@@ -223,7 +271,7 @@
 </head>
 <body>
 <div class="app" id="app">
-    <div class="chat-header">🌾 Агрофарм — заказы</div>
+    <div class="chat-header">🌾 Агрофирма — заказы (голосом)</div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1;">
         <div class="user-info" id="user-info"></div>
@@ -353,6 +401,9 @@
         }
     });
 
+    // Храним состояния редактирования
+    let editingMessageId = null;
+
     function listenMessages() {
         if (window.unsubscribeMessages) window.unsubscribeMessages();
         window.unsubscribeMessages = ordersRef.orderBy('timestamp', 'asc').onSnapshot(async snapshot => {
@@ -371,9 +422,11 @@
                 
                 const isAuthor = currentUser && data.authorId === currentUser.uid;
                 const isCompleted = data.status === 'completed';
+                const isEditing = editingMessageId === messageId;
                 
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${isCompleted ? 'completed' : ''}`;
+                messageDiv.id = `msg-${messageId}`;
                 
                 let actionsHtml = '';
                 if (!isCompleted) {
@@ -383,19 +436,34 @@
                 }
                 
                 if (isAuthor) {
+                    actionsHtml += `<button class="edit-btn" data-id="${messageId}">✏️ Редактировать</button>`;
                     actionsHtml += `<button class="delete-btn" data-id="${messageId}">🗑 Удалить</button>`;
                 }
                 
-                messageDiv.innerHTML = `
-                    <div class="message-text">${escapeHtml(data.text)}</div>
-                    <div class="message-meta">
-                        <span>📅 ${new Date(data.timestamp?.toDate()).toLocaleString()}</span>
-                        <span>👤 ${escapeHtml(authorName)}</span>
-                        <div class="message-actions">
-                            ${actionsHtml}
+                if (isEditing) {
+                    messageDiv.innerHTML = `
+                        <textarea id="edit-${messageId}" class="edit-textarea" rows="3">${escapeHtmlForEdit(data.text)}</textarea>
+                        <div class="edit-actions">
+                            <button class="save-edit-btn" data-id="${messageId}">💾 Сохранить</button>
+                            <button class="cancel-edit-btn" data-id="${messageId}">✖ Отмена</button>
                         </div>
-                    </div>
-                `;
+                        <div class="message-meta">
+                            <span>📅 ${new Date(data.timestamp?.toDate()).toLocaleString()}</span>
+                            <span>👤 ${escapeHtml(authorName)}</span>
+                        </div>
+                    `;
+                } else {
+                    messageDiv.innerHTML = `
+                        <div class="message-text">${escapeHtml(data.text)}</div>
+                        <div class="message-meta">
+                            <span>📅 ${new Date(data.timestamp?.toDate()).toLocaleString()}</span>
+                            <span>👤 ${escapeHtml(authorName)}</span>
+                            <div class="message-actions">
+                                ${actionsHtml}
+                            </div>
+                        </div>
+                    `;
+                }
                 messagesDiv.appendChild(messageDiv);
             }
             
@@ -407,7 +475,7 @@
                 });
             });
             
-            // Кнопка "Отменить" (возврат в активный статус)
+            // Кнопка "Отменить"
             document.querySelectorAll('.undo-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = btn.getAttribute('data-id');
@@ -421,6 +489,41 @@
                     const id = btn.getAttribute('data-id');
                     if (confirm('Удалить этот заказ?')) {
                         await ordersRef.doc(id).delete();
+                    }
+                });
+            });
+            
+            // Кнопка "Редактировать"
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = btn.getAttribute('data-id');
+                    editingMessageId = id;
+                    listenMessages(); // перерисовываем
+                });
+            });
+            
+            // Кнопка "Сохранить"
+            document.querySelectorAll('.save-edit-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = btn.getAttribute('data-id');
+                    const textarea = document.getElementById(`edit-${id}`);
+                    const newText = textarea.value.trim();
+                    if (newText) {
+                        const formattedText = formatOrderText(newText);
+                        await ordersRef.doc(id).update({ text: formattedText });
+                    }
+                    editingMessageId = null;
+                    listenMessages(); // перерисовываем
+                });
+            });
+            
+            // Кнопка "Отмена"
+            document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = btn.getAttribute('data-id');
+                    if (editingMessageId === id) {
+                        editingMessageId = null;
+                        listenMessages(); // перерисовываем
                     }
                 });
             });
@@ -661,6 +764,11 @@
             if (m === '>') return '&gt;';
             return m;
         }).replace(/\n/g, '<br>');
+    }
+    
+    function escapeHtmlForEdit(str) {
+        if (!str) return '';
+        return str.replace(/<br>/g, '\n');
     }
     
     initSpeech();
