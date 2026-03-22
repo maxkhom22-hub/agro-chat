@@ -92,10 +92,6 @@
             font-size: 0.7rem;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.1s;
-        }
-        .complete-btn:hover {
-            background: #059669;
         }
         .delete-btn {
             background: #ef4444;
@@ -106,10 +102,6 @@
             font-size: 0.7rem;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.1s;
-        }
-        .delete-btn:hover {
-            background: #dc2626;
         }
         .input-area {
             padding: 16px;
@@ -129,11 +121,11 @@
             height: 48px;
             border-radius: 30px;
             cursor: pointer;
-            transition: 0.1s;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            transition: 0.1s;
         }
         .voice-btn.recording {
             background: #ef4444;
@@ -184,7 +176,6 @@
         }
         .logout-btn {
             background: #6b7280;
-            margin-top: 8px;
         }
         .user-info {
             font-size: 0.8rem;
@@ -204,10 +195,6 @@
             font-size: 0.8rem;
             cursor: pointer;
             padding: 2px 8px;
-            margin-left: 8px;
-        }
-        h3 {
-            margin: 0 0 15px 0;
         }
         hr {
             margin: 15px 0;
@@ -216,7 +203,7 @@
 </head>
 <body>
 <div class="app" id="app">
-    <div class="chat-header">🌾 Агрофарм — заказы</div>
+    <div class="chat-header">🌾 Агрофирма — заказы (голосом)</div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1;">
         <div class="user-info" id="user-info"></div>
@@ -245,17 +232,12 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // Коллекция сообщений
     const ordersRef = db.collection('orders');
-    
-    // Коллекция для имён пользователей
     const usersRef = db.collection('users');
 
-    // DOM элементы
     let currentUser = null;
     let currentUserName = '';
 
-    // Функция для получения/сохранения имени пользователя
     async function getUserName(userId) {
         const doc = await usersRef.doc(userId).get();
         if (doc.exists) {
@@ -319,7 +301,6 @@
             container.style.display = 'none';
             chatContainer.style.display = 'flex';
             
-            // Загружаем имя пользователя
             getUserName(currentUser.uid).then(name => {
                 if (name) {
                     currentUserName = name;
@@ -363,7 +344,6 @@
                 const data = doc.data();
                 const messageId = doc.id;
                 
-                // Получаем имя автора
                 let authorName = data.authorName || data.authorEmail;
                 if (data.authorId && !data.authorName) {
                     const userName = await getUserName(data.authorId);
@@ -399,7 +379,6 @@
                 messagesDiv.appendChild(messageDiv);
             }
             
-            // Обработчики для кнопок "Выполнено"
             document.querySelectorAll('.complete-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = btn.getAttribute('data-id');
@@ -407,7 +386,6 @@
                 });
             });
             
-            // Обработчики для кнопок "Удалить"
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = btn.getAttribute('data-id');
@@ -423,10 +401,7 @@
 
     async function sendMessage(text) {
         if (!text.trim() || !currentUser) return;
-        
-        // Разбиваем текст на пункты
         const formattedText = formatOrderText(text.trim());
-        
         await ordersRef.add({
             text: formattedText,
             authorId: currentUser.uid,
@@ -437,67 +412,53 @@
         });
     }
 
-    // Функция для разбивки заказа на пункты
+    // Функция разбивки на пункты
     function formatOrderText(text) {
-        const markers = [
-            /(?:^|\s)(первый|1-й|1\)|пункт первый)(?:\s|:)/i,
-            /(?:^|\s)(второй|2-й|2\)|пункт второй)(?:\s|:)/i,
-            /(?:^|\s)(третий|3-й|3\)|пункт третий)(?:\s|:)/i,
-            /(?:^|\s)(четвертый|4-й|4\)|пункт четвертый)(?:\s|:)/i,
-            /(?:^|\s)(пятый|5-й|5\)|пункт пятый)(?:\s|:)/i,
-            /(?:^|\s)(шестой|6-й|6\)|пункт шестой)(?:\s|:)/i,
-            /(?:^|\s)(седьмой|7-й|7\)|пункт седьмой)(?:\s|:)/i,
-            /(?:^|\s)(восьмой|8-й|8\)|пункт восьмой)(?:\s|:)/i,
-            /(?:^|\s)(девятый|9-й|9\)|пункт девятый)(?:\s|:)/i,
-            /(?:^|\s)(десятый|10-й|10\)|пункт десятый)(?:\s|:)/i
+        // Ищем слова "первый", "второй", "третий" и т.д.
+        const patterns = [
+            { pattern: /(?:первый|1-й|1\))/i, num: '1' },
+            { pattern: /(?:второй|2-й|2\))/i, num: '2' },
+            { pattern: /(?:третий|3-й|3\))/i, num: '3' },
+            { pattern: /(?:четвертый|4-й|4\))/i, num: '4' },
+            { pattern: /(?:пятый|5-й|5\))/i, num: '5' },
+            { pattern: /(?:шестой|6-й|6\))/i, num: '6' },
+            { pattern: /(?:седьмой|7-й|7\))/i, num: '7' },
+            { pattern: /(?:восьмой|8-й|8\))/i, num: '8' },
+            { pattern: /(?:девятый|9-й|9\))/i, num: '9' },
+            { pattern: /(?:десятый|10-й|10\))/i, num: '10' }
         ];
         
-        let hasMarkers = false;
-        for (const marker of markers) {
-            if (marker.test(text)) {
-                hasMarkers = true;
+        let hasMarker = false;
+        for (const p of patterns) {
+            if (p.pattern.test(text)) {
+                hasMarker = true;
                 break;
             }
         }
         
-        if (!hasMarkers) {
-            return text;
+        if (!hasMarker) return text;
+        
+        let result = text;
+        let currentNum = 1;
+        
+        for (const p of patterns) {
+            result = result.replace(p.pattern, `\n${currentNum++})`);
         }
         
-        let currentNumber = 1;
-        let processedText = text;
+        // Очищаем и форматируем
+        result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         
-        const replacements = [
-            { pattern: /(?:^|\s)(первый|1-й|1\)|пункт первый)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
-            { pattern: /(?:^|\s)(второй|2-й|2\)|пункт второй)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
-            { pattern: /(?:^|\s)(третий|3-й|3\)|пункт третий)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
-            { pattern: /(?:^|\s)(четвертый|4-й|4\)|пункт четвертый)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
-            { pattern: /(?:^|\s)(пятый|5-й|5\)|пункт пятый)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
-            { pattern: /(?:^|\s)(шестой|6-й|6\)|пункт шестой)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
-            { pattern: /(?:^|\s)(седьмой|7-й|7\)|пункт седьмой)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
-            { pattern: /(?:^|\s)(восьмой|8-й|8\)|пункт восьмой)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
-            { pattern: /(?:^|\s)(девятый|9-й|9\)|пункт девятый)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` },
-            { pattern: /(?:^|\s)(десятый|10-й|10\)|пункт десятый)(?:\s|:)/gi, replacement: `\n${currentNumber++}) ` }
-        ];
+        // Добавляем пробел после номера, если нужно
+        result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
         
-        for (const rep of replacements) {
-            processedText = processedText.replace(rep.pattern, rep.replacement);
-        }
-        
-        processedText = processedText.replace(/^\n+/, '').replace(/\n+/g, '\n').trim();
-        
-        if (processedText.includes('\n')) {
-            return processedText;
-        }
-        
-        return text;
+        return result;
     }
 
-    // ========== ГОЛОСОВОЙ ВВОД ==========
+    // ========== ГОЛОСОВОЙ ВВОД (ТОЛЬКО ПО КНОПКЕ) ==========
     let recognition = null;
     let isRecording = false;
-    let accumulatedText = '';
-
+    let finalTranscript = ''; // накопленный текст
+    
     const voiceBtn = document.getElementById('voiceBtn');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
@@ -507,89 +468,101 @@
             if (voiceBtn) {
                 voiceBtn.disabled = true;
                 voiceBtn.title = "Ваш браузер не поддерживает голосовой ввод";
+                voiceBtn.style.opacity = '0.5';
             }
             return;
         }
+        
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
-        recognition.interimResults = true;
-        recognition.continuous = true;
-
+        recognition.interimResults = false; // только финальные результаты (чище)
+        recognition.continuous = true; // не останавливается после паузы
+        
         recognition.onstart = () => {
             isRecording = true;
             if (voiceBtn) {
                 voiceBtn.classList.add('recording');
                 voiceBtn.textContent = '⏹️';
             }
+            if (messageInput) {
+                messageInput.placeholder = '🎙️ Идёт запись... нажмите 🎤 ещё раз, чтобы остановить';
+            }
         };
-
+        
         recognition.onend = () => {
             isRecording = false;
             if (voiceBtn) {
                 voiceBtn.classList.remove('recording');
                 voiceBtn.textContent = '🎤';
             }
+            if (messageInput) {
+                messageInput.placeholder = 'Надиктуйте или введите заказ...';
+            }
             
-            if (accumulatedText.trim() && messageInput) {
-                messageInput.value = accumulatedText.trim();
-                accumulatedText = '';
+            if (finalTranscript.trim() && messageInput) {
+                messageInput.value = finalTranscript.trim();
+                finalTranscript = '';
             }
         };
-
+        
         recognition.onresult = (event) => {
-            let interimText = '';
-            let finalText = '';
-            
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const transcript = event.results[i][0].transcript;
+            let newText = '';
+            for (let i = 0; i < event.results.length; i++) {
                 if (event.results[i].isFinal) {
-                    finalText += transcript + ' ';
-                } else {
-                    interimText += transcript;
+                    newText += event.results[i][0].transcript + ' ';
                 }
             }
             
-            if (finalText) {
-                accumulatedText += finalText;
+            if (newText) {
+                finalTranscript += newText;
                 if (messageInput) {
-                    messageInput.value = accumulatedText + (interimText ? ' ' + interimText : '');
+                    messageInput.value = finalTranscript.trim();
                 }
-            } else if (interimText && messageInput) {
-                messageInput.value = accumulatedText + ' ' + interimText;
             }
         };
-
+        
         recognition.onerror = (event) => {
-            console.error('Speech error', event.error);
-            if (event.error === 'not-allowed') {
-                alert('Разрешите доступ к микрофону в настройках браузера');
-            } else if (event.error === 'network') {
-                alert('Ошибка сети. Проверьте интернет-соединение');
+            console.error('Speech error:', event.error);
+            let errorMsg = '';
+            switch(event.error) {
+                case 'not-allowed':
+                    errorMsg = 'Разрешите доступ к микрофону в настройках браузера';
+                    break;
+                case 'network':
+                    errorMsg = 'Ошибка сети. Проверьте интернет';
+                    break;
+                case 'audio-capture':
+                    errorMsg = 'Микрофон не найден. Подключите микрофон';
+                    break;
+                default:
+                    errorMsg = 'Ошибка: ' + event.error;
             }
+            alert(errorMsg);
+            
             if (isRecording) {
-                recognition.stop();
+                try { recognition.stop(); } catch(e) {}
             }
         };
     }
-
+    
     if (voiceBtn) {
         voiceBtn.addEventListener('click', () => {
             if (!recognition) {
-                alert('Голосовой ввод не поддерживается в этом браузере');
+                alert('Голосовой ввод не поддерживается в этом браузере.\n\nРекомендуем использовать:\n- Google Chrome на Android\n- Safari на iPhone\n- Chrome на компьютере');
                 return;
             }
             
             if (isRecording) {
                 recognition.stop();
             } else {
-                accumulatedText = '';
+                finalTranscript = '';
                 if (messageInput) messageInput.value = '';
                 recognition.start();
             }
         });
     }
-
+    
     if (sendBtn) {
         sendBtn.addEventListener('click', () => {
             if (messageInput) {
@@ -597,12 +570,12 @@
                 if (text) {
                     sendMessage(text);
                     messageInput.value = '';
-                    accumulatedText = '';
+                    finalTranscript = '';
                 }
             }
         });
     }
-
+    
     if (messageInput) {
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && sendBtn) {
@@ -610,7 +583,7 @@
             }
         });
     }
-
+    
     function escapeHtml(str) {
         if (!str) return '';
         return str.replace(/[&<>]/g, function(m) {
@@ -620,7 +593,7 @@
             return m;
         }).replace(/\n/g, '<br>');
     }
-
+    
     initSpeech();
 </script>
 </body>
