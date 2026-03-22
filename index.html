@@ -93,6 +93,16 @@
             font-weight: bold;
             cursor: pointer;
         }
+        .undo-btn {
+            background: #f59e0b;
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
         .delete-btn {
             background: #ef4444;
             border: none;
@@ -109,7 +119,7 @@
             border-top: 1px solid #e2e8f0;
             display: flex;
             gap: 10px;
-            align-items: center;
+            align-items: flex-end;
             flex-wrap: wrap;
         }
         .voice-btn {
@@ -140,9 +150,13 @@
             flex: 1;
             padding: 12px 16px;
             border: 1px solid #d1d5db;
-            border-radius: 30px;
+            border-radius: 20px;
             font-size: 1rem;
             outline: none;
+            resize: vertical;
+            font-family: inherit;
+            min-height: 48px;
+            max-height: 150px;
         }
         .send-btn {
             background: #2c5f2d;
@@ -152,6 +166,7 @@
             border-radius: 30px;
             font-weight: bold;
             cursor: pointer;
+            height: 48px;
         }
         .auth-panel {
             padding: 20px;
@@ -203,14 +218,14 @@
 </head>
 <body>
 <div class="app" id="app">
-    <div class="chat-header">🌾 Агрофарм — заказы </div>
+    <div class="chat-header">🌾 Агрофирма — заказы (голосом)</div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1;">
         <div class="user-info" id="user-info"></div>
         <div class="messages" id="messages-list"></div>
         <div class="input-area">
             <button class="voice-btn" id="voiceBtn">🎤</button>
-            <input type="text" id="messageInput" class="message-input" placeholder="Надиктуйте или введите заказ...">
+            <textarea id="messageInput" class="message-input" rows="1" placeholder="Надиктуйте или введите заказ... (Enter - новая строка, Ctrl+Enter - отправить)"></textarea>
             <button class="send-btn" id="sendBtn">Отправить</button>
         </div>
     </div>
@@ -350,15 +365,16 @@
                 }
                 
                 const isAuthor = currentUser && data.authorId === currentUser.uid;
+                const isCompleted = data.status === 'completed';
                 
                 const messageDiv = document.createElement('div');
-                messageDiv.className = `message ${data.status === 'completed' ? 'completed' : ''}`;
+                messageDiv.className = `message ${isCompleted ? 'completed' : ''}`;
                 
                 let actionsHtml = '';
-                if (data.status !== 'completed') {
+                if (!isCompleted) {
                     actionsHtml += `<button class="complete-btn" data-id="${messageId}">✅ Выполнено</button>`;
                 } else {
-                    actionsHtml += `<span style="color:#10b981;">✔ Выполнен</span>`;
+                    actionsHtml += `<button class="undo-btn" data-id="${messageId}">↩ Отменить</button>`;
                 }
                 
                 if (isAuthor) {
@@ -378,6 +394,7 @@
                 messagesDiv.appendChild(messageDiv);
             }
             
+            // Кнопка "Выполнено"
             document.querySelectorAll('.complete-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = btn.getAttribute('data-id');
@@ -385,6 +402,15 @@
                 });
             });
             
+            // Кнопка "Отменить" (возврат в активный статус)
+            document.querySelectorAll('.undo-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = btn.getAttribute('data-id');
+                    await ordersRef.doc(id).update({ status: 'active' });
+                });
+            });
+            
+            // Кнопка "Удалить"
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = btn.getAttribute('data-id');
@@ -411,45 +437,32 @@
         });
     }
 
-    // ========== НОВАЯ ФУНКЦИЯ РАЗБИВКИ НА ПУНКТЫ ==========
-    // Распознаёт и слова (первый, второй), и цифры (1, 2)
+    // Функция разбивки на пункты
     function formatOrderText(text) {
-        // Сначала проверяем, есть ли в тексте что-то похожее на пункты
         const hasNumbers = /(\d+)\s+/.test(text);
         const hasWords = /(первый|второй|третий|четвертый|пятый|шестой|седьмой|восьмой|девятый|десятый)/i.test(text);
         
-        // Если нет ни цифр, ни слов-маркеров — возвращаем как есть
         if (!hasNumbers && !hasWords) {
             return text;
         }
         
         let result = text;
         
-        // 1. Обрабатываем цифры: "холдинг 1 шприцы 2 антибиотики"
-        // Превращаем в "холдинг\n1) шприцы\n2) антибиотики"
-        let processedByNumbers = '';
-        const parts = result.split(/(\d+)/);
-        let currentNumber = 1;
-        
-        // Если есть отдельные цифры
         if (hasNumbers) {
+            const parts = result.split(/(\d+)/);
             let newParts = [];
             for (let i = 0; i < parts.length; i++) {
                 if (/^\d+$/.test(parts[i])) {
-                    // Это цифра — делаем из неё пункт
                     newParts.push(`\n${parts[i]})`);
                 } else {
-                    // Это текст — добавляем как есть
                     if (parts[i].trim()) {
                         newParts.push(parts[i]);
                     }
                 }
             }
-            processedByNumbers = newParts.join('').trim();
-            result = processedByNumbers;
+            result = newParts.join('').trim();
         }
         
-        // 2. Обрабатываем слова "первый", "второй" и т.д.
         const wordPatterns = [
             { pattern: /первый/gi, num: '1' },
             { pattern: /второй/gi, num: '2' },
@@ -473,20 +486,13 @@
             }
         }
         
-        // Выбираем тот вариант, который изменился больше
         if (processedByWords !== result && processedByWords.includes('\n')) {
             result = processedByWords;
-        } else if (processedByNumbers !== text && processedByNumbers.includes('\n')) {
-            result = processedByNumbers;
         }
         
-        // Очищаем лишние переносы и форматируем
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
-        
-        // Добавляем пробел после номера, если нет
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
         
-        // Если в результате есть переносы строк — значит есть пункты
         if (result.includes('\n')) {
             return result;
         }
@@ -537,12 +543,13 @@
                 voiceBtn.textContent = '🎤';
             }
             if (messageInput) {
-                messageInput.placeholder = 'Надиктуйте или введите заказ...';
+                messageInput.placeholder = 'Надиктуйте или введите заказ... (Enter - новая строка, Ctrl+Enter - отправить)';
             }
             
             if (finalTranscript.trim() && messageInput) {
                 messageInput.value = finalTranscript.trim();
                 finalTranscript = '';
+                autoResizeTextarea(messageInput);
             }
         };
         
@@ -558,6 +565,7 @@
                 finalTranscript += newText;
                 if (messageInput) {
                     messageInput.value = finalTranscript.trim();
+                    autoResizeTextarea(messageInput);
                 }
             }
         };
@@ -586,6 +594,12 @@
         };
     }
     
+    function autoResizeTextarea(textarea) {
+        if (!textarea) return;
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+    }
+    
     if (voiceBtn) {
         voiceBtn.addEventListener('click', () => {
             if (!recognition) {
@@ -610,6 +624,7 @@
                 if (text) {
                     sendMessage(text);
                     messageInput.value = '';
+                    autoResizeTextarea(messageInput);
                     finalTranscript = '';
                 }
             }
@@ -617,10 +632,19 @@
     }
     
     if (messageInput) {
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && sendBtn) {
-                sendBtn.click();
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    if (sendBtn) sendBtn.click();
+                } else {
+                    setTimeout(() => autoResizeTextarea(messageInput), 0);
+                }
             }
+        });
+        
+        messageInput.addEventListener('input', () => {
+            autoResizeTextarea(messageInput);
         });
     }
     
