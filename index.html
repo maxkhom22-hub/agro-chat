@@ -249,7 +249,6 @@
     let currentUserName = '';
     let editingMessageId = null;
 
-    // Определяем, телефон ли это
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
 
     async function getUserName(userId) {
@@ -422,9 +421,22 @@
         });
     }
 
+    // ========== НОВАЯ ФУНКЦИЯ РАЗБИВКИ ==========
+    // Распознаёт все формы: первый, первая, первое, второй, вторая, второе и т.д.
     function formatOrderText(text) {
         const numbers = text.match(/\b\d+\b/g);
-        const markers = text.match(/\b(первый|второй|третий|четвертый|пятый|шестой|седьмой|восьмой|девятый|десятый)\b/gi);
+        
+        const markerWords = [
+            'первый', 'второй', 'третий', 'четвертый', 'пятый', 
+            'шестой', 'седьмой', 'восьмой', 'девятый', 'десятый',
+            'первая', 'вторая', 'третья', 'четвертая', 'пятая',
+            'шестая', 'седьмая', 'восьмая', 'девятая', 'десятая',
+            'первое', 'второе', 'третье', 'четвертое', 'пятое',
+            'шестое', 'седьмое', 'восьмое', 'девятое', 'десятое'
+        ];
+        
+        const markerPattern = new RegExp(`\\b(${markerWords.join('|')})\\b`, 'gi');
+        const markers = text.match(markerPattern);
         
         const hasMultipleNumbers = numbers && numbers.length >= 2;
         const hasMultipleMarkers = markers && markers.length >= 2;
@@ -451,14 +463,31 @@
         }
         
         if (hasMultipleMarkers) {
-            const wordList = ['первый','второй','третий','четвертый','пятый','шестой','седьмой','восьмой','девятый','десятый'];
             let num = 1;
-            for (const word of wordList) {
-                const regex = new RegExp(`\\b${word}\\b`, 'gi');
-                if (regex.test(result)) {
-                    result = result.replace(regex, `\n${num})`);
+            const orderedMarkers = [
+                'первый', 'первая', 'первое',
+                'второй', 'вторая', 'второе',
+                'третий', 'третья', 'третье',
+                'четвертый', 'четвертая', 'четвертое',
+                'пятый', 'пятая', 'пятое',
+                'шестой', 'шестая', 'шестое',
+                'седьмой', 'седьмая', 'седьмое',
+                'восьмой', 'восьмая', 'восьмое',
+                'девятый', 'девятая', 'девятое',
+                'десятый', 'десятая', 'десятое'
+            ];
+            
+            let tempResult = result;
+            for (let i = 0; i < orderedMarkers.length; i++) {
+                const marker = orderedMarkers[i];
+                const regex = new RegExp(`\\b${marker}\\b`, 'gi');
+                if (regex.test(tempResult)) {
+                    tempResult = tempResult.replace(regex, `\n${num})`);
                     num++;
                 }
+            }
+            if (tempResult !== result) {
+                result = tempResult;
             }
         }
         
@@ -472,7 +501,6 @@
     let recognition = null;
     let isRecording = false;
     let finalTranscript = '';
-    let pressTimer = null;
     
     const voiceBtn = document.getElementById('voiceBtn');
     const messageInput = document.getElementById('messageInput');
@@ -582,31 +610,24 @@
         textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
     
-    // Настройка обработчиков в зависимости от устройства
     function setupVoiceHandlers() {
         if (!voiceBtn || !recognition) return;
         
         if (isTouchDevice) {
-            // Телефон: нажал и держишь → запись, отпустил → стоп
             voiceBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 startRecording();
             });
-            
             voiceBtn.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 stopRecording();
             });
-            
             voiceBtn.addEventListener('touchcancel', (e) => {
                 e.preventDefault();
                 stopRecording();
             });
-            
             if (voiceHint) voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
-            
         } else {
-            // Компьютер: нажал → запись, нажал ещё раз → стоп
             voiceBtn.addEventListener('click', () => {
                 if (isRecording) {
                     stopRecording();
@@ -614,7 +635,6 @@
                     startRecording();
                 }
             });
-            
             if (voiceHint) voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
         }
     }
