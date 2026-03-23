@@ -472,12 +472,30 @@
     let recognition = null;
     let isRecording = false;
     let finalTranscript = '';
-    let isTouchMode = false; // для телефона
+    let pressTimer = null;
     
     const voiceBtn = document.getElementById('voiceBtn');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
     const voiceHint = document.getElementById('voiceHint');
+
+    function startRecording() {
+        if (!recognition) {
+            alert('Голосовой ввод не поддерживается');
+            return;
+        }
+        if (isRecording) return;
+        finalTranscript = '';
+        if (messageInput) messageInput.value = '';
+        recognition.start();
+    }
+
+    function stopRecording() {
+        if (!recognition) return;
+        if (isRecording) {
+            recognition.stop();
+        }
+    }
 
     function initSpeech() {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -493,26 +511,30 @@
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
         recognition.interimResults = false;
-        recognition.continuous = true; // не останавливается сам
+        recognition.continuous = true;
         
         recognition.onstart = () => {
             isRecording = true;
             if (voiceBtn) {
                 voiceBtn.classList.add('recording');
-                voiceBtn.textContent = '⏹️';
             }
-            if (voiceHint) voiceHint.textContent = '🎙️ Идёт запись... нажмите 🎤 ещё раз, чтобы остановить';
+            if (voiceHint) {
+                if (isTouchDevice) {
+                    voiceHint.textContent = '🎙️ Запись... отпустите кнопку для остановки';
+                } else {
+                    voiceHint.textContent = '🎙️ Идёт запись... нажмите 🎤 ещё раз, чтобы остановить';
+                }
+            }
         };
         
         recognition.onend = () => {
             isRecording = false;
             if (voiceBtn) {
                 voiceBtn.classList.remove('recording');
-                voiceBtn.textContent = '🎤';
             }
             if (voiceHint) {
                 if (isTouchDevice) {
-                    voiceHint.textContent = '🎤 Нажмите и удерживайте для записи (телефон)';
+                    voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
                 } else {
                     voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
                 }
@@ -543,21 +565,11 @@
         
         recognition.onerror = (event) => {
             console.error('Speech error:', event.error);
-            let errorMsg = '';
-            switch(event.error) {
-                case 'not-allowed':
-                    errorMsg = 'Разрешите доступ к микрофону в настройках браузера';
-                    break;
-                case 'network':
-                    errorMsg = 'Ошибка сети. Проверьте интернет';
-                    break;
-                case 'audio-capture':
-                    errorMsg = 'Микрофон не найден';
-                    break;
-                default:
-                    errorMsg = 'Ошибка: ' + event.error;
+            if (event.error === 'not-allowed') {
+                alert('Разрешите доступ к микрофону в настройках браузера');
+            } else if (event.error === 'network') {
+                alert('Ошибка сети. Проверьте интернет');
             }
-            alert(errorMsg);
             if (isRecording) {
                 try { recognition.stop(); } catch(e) {}
             }
@@ -575,40 +587,31 @@
         if (!voiceBtn || !recognition) return;
         
         if (isTouchDevice) {
-            // Телефон: нажал и держишь — запись, отпустил — стоп
+            // Телефон: нажал и держишь → запись, отпустил → стоп
             voiceBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                if (!recognition) return;
-                if (isRecording) {
-                    // Если уже запись — останавливаем
-                    recognition.stop();
-                } else {
-                    finalTranscript = '';
-                    if (messageInput) messageInput.value = '';
-                    recognition.start();
-                }
+                startRecording();
             });
             
-            // Для длительного нажатия не нужно отдельное touchend, но добавим для чистоты
             voiceBtn.addEventListener('touchend', (e) => {
                 e.preventDefault();
-                // Ничего не делаем, так как запись останавливается только по повторному нажатию
-                // Но если хотим остановку при отпускании — раскомментировать:
-                // if (isRecording) recognition.stop();
+                stopRecording();
             });
             
-            if (voiceHint) voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
+            voiceBtn.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                stopRecording();
+            });
+            
+            if (voiceHint) voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
             
         } else {
-            // Компьютер: нажал — запись, нажал ещё раз — стоп
+            // Компьютер: нажал → запись, нажал ещё раз → стоп
             voiceBtn.addEventListener('click', () => {
-                if (!recognition) return;
                 if (isRecording) {
-                    recognition.stop();
+                    stopRecording();
                 } else {
-                    finalTranscript = '';
-                    if (messageInput) messageInput.value = '';
-                    recognition.start();
+                    startRecording();
                 }
             });
             
