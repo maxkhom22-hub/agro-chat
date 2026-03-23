@@ -422,37 +422,107 @@
     }
 
     // ========== НОВАЯ ФУНКЦИЯ РАЗБИВКИ ==========
-    // Распознаёт все формы: первый, первая, первое, второй, вторая, второе и т.д.
+    // Работает с любыми маркерами: цифры, слова, разные падежи и роды
     function formatOrderText(text) {
-        const numbers = text.match(/\b\d+\b/g);
+        // Нормализуем текст: заменяем слова-числа на цифры
+        let normalized = text;
         
-        const markerWords = [
-            'первый', 'второй', 'третий', 'четвертый', 'пятый', 
-            'шестой', 'седьмой', 'восьмой', 'девятый', 'десятый',
-            'первая', 'вторая', 'третья', 'четвертая', 'пятая',
-            'шестая', 'седьмая', 'восьмая', 'девятая', 'десятая',
-            'первое', 'второе', 'третье', 'четвертое', 'пятое',
-            'шестое', 'седьмое', 'восьмое', 'девятое', 'десятое'
+        const wordToNumber = {
+            'один': '1', 'одна': '1', 'одно': '1',
+            'два': '2', 'две': '2',
+            'три': '3',
+            'четыре': '4',
+            'пять': '5',
+            'шесть': '6',
+            'семь': '7',
+            'восемь': '8',
+            'девять': '9',
+            'десять': '10'
+        };
+        
+        for (const [word, num] of Object.entries(wordToNumber)) {
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            normalized = normalized.replace(regex, num);
+        }
+        
+        // Находим ВСЕ маркеры (цифры и слова-порядковые)
+        const allMarkers = [];
+        
+        // Цифры
+        const numberMatches = normalized.match(/\b\d+\b/g);
+        if (numberMatches) {
+            for (const num of numberMatches) {
+                allMarkers.push({ type: 'number', value: num });
+            }
+        }
+        
+        // Слова-порядковые (все формы)
+        const orderWords = [
+            'первый', 'первая', 'первое',
+            'второй', 'вторая', 'второе',
+            'третий', 'третья', 'третье',
+            'четвертый', 'четвертая', 'четвертое',
+            'пятый', 'пятая', 'пятое',
+            'шестой', 'шестая', 'шестое',
+            'седьмой', 'седьмая', 'седьмое',
+            'восьмой', 'восьмая', 'восьмое',
+            'девятый', 'девятая', 'девятое',
+            'десятый', 'десятая', 'десятое'
         ];
         
-        const markerPattern = new RegExp(`\\b(${markerWords.join('|')})\\b`, 'gi');
-        const markers = text.match(markerPattern);
+        for (let i = 0; i < orderWords.length; i++) {
+            const word = orderWords[i];
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            if (regex.test(text)) {
+                const num = Math.floor(i / 3) + 1;
+                allMarkers.push({ type: 'word', value: num, original: word });
+            }
+        }
         
-        const hasMultipleNumbers = numbers && numbers.length >= 2;
-        const hasMultipleMarkers = markers && markers.length >= 2;
-        
-        if (!hasMultipleNumbers && !hasMultipleMarkers) {
+        // Если меньше 2 маркеров — не разбиваем
+        if (allMarkers.length < 2) {
             return text;
+        }
+        
+        // Находим позиции маркеров в исходном тексте
+        const markersWithPos = [];
+        for (const marker of allMarkers) {
+            let searchText = '';
+            if (marker.type === 'number') {
+                searchText = marker.value;
+            } else {
+                searchText = marker.original;
+            }
+            const pos = text.toLowerCase().indexOf(searchText.toLowerCase());
+            if (pos !== -1) {
+                markersWithPos.push({ ...marker, pos: pos });
+            }
+        }
+        markersWithPos.sort((a, b) => a.pos - b.pos);
+        
+        // Создаём карту: маркер -> порядковый номер пункта
+        const markerToNumber = new Map();
+        let currentNum = 1;
+        for (const marker of markersWithPos) {
+            markerToNumber.set(marker.original || marker.value, currentNum);
+            currentNum++;
         }
         
         let result = text;
         
-        if (hasMultipleNumbers) {
+        // Заменяем цифры
+        if (numberMatches) {
             const parts = result.split(/(\b\d+\b)/);
             let newParts = [];
             for (let i = 0; i < parts.length; i++) {
                 if (/^\b\d+\b$/.test(parts[i].trim())) {
-                    newParts.push(`\n${parts[i].trim()})`);
+                    const num = parts[i].trim();
+                    const newNum = markerToNumber.get(num);
+                    if (newNum) {
+                        newParts.push(`\n${newNum})`);
+                    } else {
+                        newParts.push(`\n${num})`);
+                    }
                 } else {
                     if (parts[i].trim()) {
                         newParts.push(parts[i]);
@@ -462,37 +532,29 @@
             result = newParts.join('').trim();
         }
         
-        if (hasMultipleMarkers) {
-            let num = 1;
-            const orderedMarkers = [
-                'первый', 'первая', 'первое',
-                'второй', 'вторая', 'второе',
-                'третий', 'третья', 'третье',
-                'четвертый', 'четвертая', 'четвертое',
-                'пятый', 'пятая', 'пятое',
-                'шестой', 'шестая', 'шестое',
-                'седьмой', 'седьмая', 'седьмое',
-                'восьмой', 'восьмая', 'восьмое',
-                'девятый', 'девятая', 'девятое',
-                'десятый', 'десятая', 'десятое'
-            ];
-            
-            let tempResult = result;
-            for (let i = 0; i < orderedMarkers.length; i++) {
-                const marker = orderedMarkers[i];
-                const regex = new RegExp(`\\b${marker}\\b`, 'gi');
-                if (regex.test(tempResult)) {
-                    tempResult = tempResult.replace(regex, `\n${num})`);
-                    num++;
+        // Заменяем слова-порядковые
+        for (const marker of markersWithPos) {
+            if (marker.type === 'word') {
+                const newNum = markerToNumber.get(marker.original);
+                if (newNum) {
+                    const regex = new RegExp(`\\b${marker.original}\\b`, 'gi');
+                    result = result.replace(regex, `\n${newNum})`);
                 }
-            }
-            if (tempResult !== result) {
-                result = tempResult;
             }
         }
         
+        // Чистим и форматируем
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
+        
+        // Сортируем пункты по порядку
+        const lines = result.split('\n');
+        const sortedLines = lines.sort((a, b) => {
+            const numA = parseInt(a.match(/^\d+/));
+            const numB = parseInt(b.match(/^\d+/));
+            return numA - numB;
+        });
+        result = sortedLines.join('\n');
         
         return result.includes('\n') ? result : text;
     }
@@ -539,7 +601,7 @@
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
         recognition.interimResults = false;
-        recognition.continuous = true;
+        recognition.continuous = true;  // НЕ останавливается после паузы
         
         recognition.onstart = () => {
             isRecording = true;
@@ -597,6 +659,9 @@
                 alert('Разрешите доступ к микрофону в настройках браузера');
             } else if (event.error === 'network') {
                 alert('Ошибка сети. Проверьте интернет');
+            } else if (event.error === 'no-speech') {
+                // Игнорируем, не останавливаем запись
+                return;
             }
             if (isRecording) {
                 try { recognition.stop(); } catch(e) {}
