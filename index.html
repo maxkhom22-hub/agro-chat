@@ -8,19 +8,90 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui; }
-        html, body { height: 100%; overflow: hidden; }
-        body { background: #e5e7eb; display: flex; justify-content: center; align-items: center; }
-        .app { width: 100%; max-width: 800px; height: 100%; background: white; display: flex; flex-direction: column; overflow: hidden; }
-        .chat-header { background: #2c5f2d; color: white; padding: 16px; text-align: center; flex-shrink: 0; }
-        .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: #f9fafb; }
-        .message { background: white; border-radius: 16px; padding: 10px 14px; border-left: 4px solid #ccc; }
-        .message.completed { background: #d1fae5; border-left-color: #10b981; }
-        .message-text { font-size: 0.95rem; white-space: pre-wrap; }
-        .message-meta { display: flex; justify-content: space-between; font-size: 0.7rem; color: #6b7280; margin-top: 8px; flex-wrap: wrap; gap: 8px; }
-        .message-actions { display: flex; gap: 6px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #e5e7eb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app {
+            max-width: 800px;
+            width: 100%;
+            height: 95vh;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -10px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: 10px;
+        }
+        .chat-header {
+            background: #2c5f2d;
+            color: white;
+            padding: 20px;
+            font-weight: bold;
+            font-size: 1.3rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f9fafb;
+        }
+        .message {
+            background: white;
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border-left: 5px solid #ccc;
+        }
+        .message.completed {
+            background: #d1fae5;
+            border-left-color: #10b981;
+        }
+        .message-text {
+            font-size: 1rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .message-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #6b7280;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .message-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
         .complete-btn, .undo-btn, .delete-btn, .edit-btn, .save-edit-btn, .cancel-edit-btn {
-            border: none; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; cursor: pointer;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
         }
         .complete-btn { background: #10b981; color: white; }
         .undo-btn { background: #f59e0b; color: white; }
@@ -28,34 +99,136 @@
         .edit-btn { background: #3b82f6; color: white; }
         .save-edit-btn { background: #10b981; color: white; }
         .cancel-edit-btn { background: #6b7280; color: white; }
-        .edit-textarea { width: 100%; padding: 8px; border: 1px solid #10b981; border-radius: 12px; margin-bottom: 8px; }
-        .input-area { padding: 12px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0; }
-        .voice-btn { background: #3b82f6; border: none; color: white; font-size: 1.3rem; width: 48px; height: 48px; border-radius: 30px; cursor: pointer; flex-shrink: 0; touch-action: manipulation; }
-        .voice-btn.recording { background: #ef4444; transform: scale(0.95); }
-        .message-input { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 24px; font-size: 0.95rem; outline: none; resize: none; min-height: 44px; max-height: 100px; }
-        .send-btn { background: #2c5f2d; border: none; color: white; padding: 10px 18px; border-radius: 30px; font-weight: bold; cursor: pointer; }
-        .auth-panel { padding: 20px; text-align: center; background: #f3f4f6; flex: 1; display: flex; flex-direction: column; justify-content: center; }
-        .login-input { padding: 10px; margin: 8px; border-radius: 30px; border: 1px solid #ccc; width: 80%; max-width: 280px; }
-        .user-info { font-size: 0.8rem; padding: 8px 16px; background: #eef2ff; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .user-name { font-weight: bold; color: #2c5f2d; }
-        .edit-name-btn { background: none; border: none; cursor: pointer; padding: 4px 8px; }
-        .logout-btn { background: #6b7280; color: white; border: none; border-radius: 20px; padding: 4px 12px; cursor: pointer; }
-        .voice-hint { font-size: 0.7rem; color: #6b7280; text-align: center; padding: 4px 12px; background: #f3f4f6; }
+        .edit-textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #10b981;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            margin-bottom: 8px;
+        }
+        .input-area {
+            padding: 12px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+        .voice-btn {
+            background: #3b82f6;
+            border: none;
+            color: white;
+            font-size: 1.3rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 30px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: 0.1s;
+            touch-action: manipulation;
+        }
+        .voice-btn.recording {
+            background: #ef4444;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 24px;
+            font-size: 1rem;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+            min-height: 48px;
+            max-height: 100px;
+        }
+        .send-btn {
+            background: #2c5f2d;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .auth-panel {
+            padding: 20px;
+            text-align: center;
+            background: #f3f4f6;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .login-input {
+            padding: 10px;
+            margin: 8px;
+            border-radius: 30px;
+            border: 1px solid #ccc;
+            width: 80%;
+            max-width: 280px;
+        }
+        .user-info {
+            font-size: 0.8rem;
+            padding: 8px 16px;
+            background: #eef2ff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .user-name {
+            font-weight: bold;
+            color: #2c5f2d;
+        }
+        .edit-name-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        .logout-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 4px 12px;
+            cursor: pointer;
+        }
+        .voice-hint {
+            font-size: 0.7rem;
+            color: #6b7280;
+            text-align: center;
+            padding: 4px 12px;
+            background: #f3f4f6;
+        }
+        hr {
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
 <div class="app">
-    <div class="chat-header">🌾 Агрофарм — заказы</div>
+    <div class="chat-header">🌾 Агрофирма — заказы (голосом)</div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
         <div class="user-info" id="user-info"></div>
         <div class="messages" id="messages-list"></div>
         <div class="input-area">
             <button class="voice-btn" id="voiceBtn">🎤</button>
-            <textarea id="messageInput" class="message-input" rows="1" placeholder="Напишите заказ..."></textarea>
+            <textarea id="messageInput" class="message-input" rows="1" placeholder="Напишите заказ... (Ctrl+Enter - отправить)"></textarea>
             <button class="send-btn" id="sendBtn">Отправить</button>
         </div>
-        <div class="voice-hint" id="voiceHint">🎤 Нажмите и удерживайте для записи</div>
+        <div class="voice-hint" id="voiceHint">🎤 Нажмите и удерживайте для записи (телефон) / нажмите для старта и стопа (компьютер)</div>
     </div>
 </div>
 
@@ -242,9 +415,8 @@
 
     async function sendMessage(text) {
         if (!text.trim() || !currentUser) return;
-        const formatted = formatOrderText(text.trim());
         await ordersRef.add({
-            text: formatted,
+            text: formatOrderText(text.trim()),
             authorId: currentUser.uid,
             authorName: currentUserName,
             authorEmail: currentUser.email,
@@ -253,108 +425,54 @@
         });
     }
 
-    // ========== РАБОЧАЯ ФУНКЦИЯ РАЗБИВКИ ==========
+    // ========== ФУНКЦИЯ РАЗБИВКИ (с первое, второе, третье) ==========
     function formatOrderText(text) {
-        // Слова-маркеры и их номера
-        const markers = [
-            { words: ['первый', 'первая', 'первое'], num: 1 },
-            { words: ['второй', 'вторая', 'второе'], num: 2 },
-            { words: ['третий', 'третья', 'третье'], num: 3 },
-            { words: ['четвертый', 'четвертая', 'четвертое'], num: 4 },
-            { words: ['пятый', 'пятая', 'пятое'], num: 5 },
-            { words: ['шестой', 'шестая', 'шестое'], num: 6 },
-            { words: ['седьмой', 'седьмая', 'седьмое'], num: 7 },
-            { words: ['восьмой', 'восьмая', 'восьмое'], num: 8 },
-            { words: ['девятый', 'девятая', 'девятое'], num: 9 },
-            { words: ['десятый', 'десятая', 'десятое'], num: 10 }
+        let result = text;
+        
+        // Заменяем цифры на пункты
+        if (result.match(/\d+/g)) {
+            const parts = result.split(/(\d+)/);
+            let newParts = [];
+            for (let i = 0; i < parts.length; i++) {
+                if (parts[i].match(/^\d+$/)) {
+                    newParts.push(`\n${parts[i]})`);
+                } else {
+                    if (parts[i].trim()) {
+                        newParts.push(parts[i]);
+                    }
+                }
+            }
+            result = newParts.join('').trim();
+        }
+        
+        // Заменяем слова-маркеры на пункты
+        const words = [
+            'первый', 'первая', 'первое',
+            'второй', 'вторая', 'второе',
+            'третий', 'третья', 'третье',
+            'четвертый', 'четвертая', 'четвертое',
+            'пятый', 'пятая', 'пятое',
+            'шестой', 'шестая', 'шестое',
+            'седьмой', 'седьмая', 'седьмое',
+            'восьмой', 'восьмая', 'восьмое',
+            'девятый', 'девятая', 'девятое',
+            'десятый', 'десятая', 'десятое'
         ];
         
-        // Собираем все маркеры из текста
-        let found = [];
-        let lowerText = text.toLowerCase();
-        
-        // Ищем слова-маркеры
-        for (let m of markers) {
-            for (let w of m.words) {
-                // Проверяем с буквой е
-                let idx = lowerText.indexOf(w);
-                if (idx === -1) {
-                    // Проверяем с буквой ё
-                    let wWithYo = w.replace(/е/g, 'ё');
-                    idx = lowerText.indexOf(wWithYo);
-                    if (idx !== -1) {
-                        found.push({ word: wWithYo, num: m.num, pos: idx, original: text.substr(idx, wWithYo.length) });
-                    }
-                } else {
-                    found.push({ word: w, num: m.num, pos: idx, original: text.substr(idx, w.length) });
-                }
+        let num = 1;
+        for (const word of words) {
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            if (regex.test(result)) {
+                result = result.replace(regex, `\n${num})`);
+                num++;
             }
-        }
-        
-        // Ищем цифры от 1 до 10
-        for (let i = 1; i <= 10; i++) {
-            let numStr = i.toString();
-            let idx = text.indexOf(numStr);
-            if (idx !== -1) {
-                // Проверяем, не часть ли это другого числа
-                let isPartOfBigger = false;
-                if (idx > 0 && /\d/.test(text[idx-1])) isPartOfBigger = true;
-                if (idx + numStr.length < text.length && /\d/.test(text[idx+numStr.length])) isPartOfBigger = true;
-                if (!isPartOfBigger) {
-                    found.push({ word: numStr, num: i, pos: idx, original: numStr, isNumber: true });
-                }
-            }
-        }
-        
-        // Убираем дубликаты (если одно и то же слово найдено несколько раз)
-        let unique = [];
-        for (let f of found) {
-            if (!unique.some(u => u.pos === f.pos)) {
-                unique.push(f);
-            }
-        }
-        found = unique;
-        
-        // Сортируем по позиции в тексте
-        found.sort((a, b) => a.pos - b.pos);
-        
-        // Если меньше 2 маркеров — возвращаем как есть
-        if (found.length < 2) {
-            return text;
-        }
-        
-        // Создаём замены: старый маркер -> новый номер (1, 2, 3... по порядку)
-        let result = text;
-        let counter = 1;
-        let replaced = [];
-        
-        for (let f of found) {
-            let searchWord = f.original;
-            let replacement = `\n${counter})`;
-            // Заменяем только если ещё не заменяли этот маркер
-            if (!replaced.includes(searchWord.toLowerCase()) || f.isNumber) {
-                let regex = new RegExp(`\\b${searchWord}\\b`, 'gi');
-                result = result.replace(regex, replacement);
-                replaced.push(searchWord.toLowerCase());
-            }
-            counter++;
         }
         
         // Чистим результат
-        result = result.replace(/\n+/g, '\n');
-        result = result.replace(/^\n/, '');
+        result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
         
-        // Сортируем строки по номеру
-        let lines = result.split('\n');
-        lines.sort((a, b) => {
-            let na = parseInt(a.match(/^\d+/));
-            let nb = parseInt(b.match(/^\d+/));
-            return na - nb;
-        });
-        result = lines.join('\n');
-        
-        return result;
+        return result.includes('\n') ? result : text;
     }
 
     // ========== ГОЛОСОВОЙ ВВОД ==========
@@ -399,13 +517,25 @@
         recognition.onstart = () => {
             isRecording = true;
             voiceBtn.classList.add('recording');
-            voiceHint.textContent = '🎙️ Запись... отпустите кнопку для остановки';
+            if (voiceHint) {
+                if (isTouchDevice) {
+                    voiceHint.textContent = '🎙️ Запись... отпустите кнопку для остановки';
+                } else {
+                    voiceHint.textContent = '🎙️ Идёт запись... нажмите 🎤 ещё раз, чтобы остановить';
+                }
+            }
         };
         
         recognition.onend = () => {
             isRecording = false;
             voiceBtn.classList.remove('recording');
-            voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
+            if (voiceHint) {
+                if (isTouchDevice) {
+                    voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
+                } else {
+                    voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
+                }
+            }
             if (finalTranscript.trim() && messageInput) {
                 messageInput.value = finalTranscript.trim();
                 finalTranscript = '';
