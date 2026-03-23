@@ -2,9 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Агрофирма: голосовые заказы</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -16,35 +14,24 @@
             box-sizing: border-box;
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
         }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
         body {
             background: #e5e7eb;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            height: 100vh;
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
         }
         .app {
-            max-width: 800px;
             width: 100%;
+            max-width: 800px;
             height: 100%;
             background: white;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            position: relative;
-        }
-        /* Для iPhone с вырезом и домашней индикацией */
-        @supports (padding: max(0px)) {
-            .chat-header {
-                padding-top: max(16px, env(safe-area-inset-top));
-            }
-            .input-area {
-                padding-bottom: max(12px, env(safe-area-inset-bottom));
-            }
         }
         .chat-header {
             background: #2c5f2d;
@@ -63,7 +50,6 @@
             flex-direction: column;
             gap: 12px;
             background: #f9fafb;
-            -webkit-overflow-scrolling: touch;
         }
         .message {
             background: white;
@@ -127,7 +113,6 @@
             gap: 8px;
             align-items: flex-end;
             flex-shrink: 0;
-            background: white;
         }
         .voice-btn {
             background: #3b82f6;
@@ -160,7 +145,6 @@
             font-family: inherit;
             min-height: 44px;
             max-height: 100px;
-            background: white;
         }
         .send-btn {
             background: #2c5f2d;
@@ -202,34 +186,24 @@
             font-weight: bold;
             color: #2c5f2d;
         }
-        .edit-name-btn, .logout-btn {
+        .edit-name-btn {
             background: none;
             border: none;
             cursor: pointer;
             padding: 4px 8px;
+            font-size: 0.8rem;
         }
         .logout-btn {
             background: #6b7280;
             color: white;
+            border: none;
             border-radius: 20px;
             font-size: 0.7rem;
-        }
-        button {
+            padding: 4px 12px;
             cursor: pointer;
         }
         hr {
             margin: 15px 0;
-        }
-        /* Скрываем полосу прокрутки на iOS для красоты, но оставляем функционал */
-        .messages::-webkit-scrollbar {
-            width: 4px;
-        }
-        .messages::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        .messages::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 4px;
         }
     </style>
 </head>
