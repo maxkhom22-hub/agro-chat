@@ -8,87 +8,19 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-        }
-        html, body {
-            height: 100%;
-            overflow: hidden;
-        }
-        body {
-            background: #e5e7eb;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .app {
-            width: 100%;
-            max-width: 800px;
-            height: 100%;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .chat-header {
-            background: #2c5f2d;
-            color: white;
-            padding: 16px 20px;
-            font-weight: bold;
-            font-size: 1.2rem;
-            text-align: center;
-            flex-shrink: 0;
-        }
-        .messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            background: #f9fafb;
-        }
-        .message {
-            background: white;
-            border-radius: 16px;
-            padding: 10px 14px;
-            border-left: 4px solid #ccc;
-        }
-        .message.completed {
-            background: #d1fae5;
-            border-left-color: #10b981;
-        }
-        .message-text {
-            font-size: 0.95rem;
-            line-height: 1.4;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-        .message-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.7rem;
-            color: #6b7280;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 8px;
-        }
-        .message-actions {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui; }
+        html, body { height: 100%; overflow: hidden; }
+        body { background: #e5e7eb; display: flex; justify-content: center; align-items: center; }
+        .app { width: 100%; max-width: 800px; height: 100%; background: white; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { background: #2c5f2d; color: white; padding: 16px; text-align: center; flex-shrink: 0; }
+        .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: #f9fafb; }
+        .message { background: white; border-radius: 16px; padding: 10px 14px; border-left: 4px solid #ccc; }
+        .message.completed { background: #d1fae5; border-left-color: #10b981; }
+        .message-text { font-size: 0.95rem; white-space: pre-wrap; }
+        .message-meta { display: flex; justify-content: space-between; font-size: 0.7rem; color: #6b7280; margin-top: 8px; flex-wrap: wrap; gap: 8px; }
+        .message-actions { display: flex; gap: 6px; }
         .complete-btn, .undo-btn, .delete-btn, .edit-btn, .save-edit-btn, .cancel-edit-btn {
-            border: none;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            cursor: pointer;
+            border: none; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; cursor: pointer;
         }
         .complete-btn { background: #10b981; color: white; }
         .undo-btn { background: #f59e0b; color: white; }
@@ -96,125 +28,24 @@
         .edit-btn { background: #3b82f6; color: white; }
         .save-edit-btn { background: #10b981; color: white; }
         .cancel-edit-btn { background: #6b7280; color: white; }
-        .edit-textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #10b981;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            font-family: inherit;
-            margin-bottom: 8px;
-        }
-        .input-area {
-            padding: 12px;
-            background: white;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            gap: 8px;
-            align-items: flex-end;
-            flex-shrink: 0;
-        }
-        .voice-btn {
-            background: #3b82f6;
-            border: none;
-            color: white;
-            font-size: 1.3rem;
-            width: 48px;
-            height: 48px;
-            border-radius: 30px;
-            cursor: pointer;
-            flex-shrink: 0;
-            transition: 0.1s;
-            touch-action: manipulation;
-            user-select: none;
-        }
-        .voice-btn.recording {
-            background: #ef4444;
-            transform: scale(0.95);
-        }
-        .message-input {
-            flex: 1;
-            padding: 10px 14px;
-            border: 1px solid #d1d5db;
-            border-radius: 24px;
-            font-size: 0.95rem;
-            outline: none;
-            resize: none;
-            font-family: inherit;
-            min-height: 44px;
-            max-height: 100px;
-        }
-        .send-btn {
-            background: #2c5f2d;
-            border: none;
-            color: white;
-            padding: 10px 18px;
-            border-radius: 30px;
-            font-weight: bold;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
-        .auth-panel {
-            padding: 20px;
-            text-align: center;
-            background: #f3f4f6;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        .login-input {
-            padding: 10px;
-            margin: 8px;
-            border-radius: 30px;
-            border: 1px solid #ccc;
-            width: 80%;
-            max-width: 280px;
-        }
-        .user-info {
-            font-size: 0.8rem;
-            padding: 8px 16px;
-            background: #eef2ff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-        }
-        .user-name {
-            font-weight: bold;
-            color: #2c5f2d;
-        }
-        .edit-name-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px 8px;
-            font-size: 0.8rem;
-        }
-        .logout-btn {
-            background: #6b7280;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            padding: 4px 12px;
-            cursor: pointer;
-        }
-        hr {
-            margin: 15px 0;
-        }
-        .voice-hint {
-            font-size: 0.7rem;
-            color: #6b7280;
-            text-align: center;
-            padding: 4px 12px;
-            background: #f3f4f6;
-        }
+        .edit-textarea { width: 100%; padding: 8px; border: 1px solid #10b981; border-radius: 12px; margin-bottom: 8px; }
+        .input-area { padding: 12px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0; }
+        .voice-btn { background: #3b82f6; border: none; color: white; font-size: 1.3rem; width: 48px; height: 48px; border-radius: 30px; cursor: pointer; flex-shrink: 0; touch-action: manipulation; }
+        .voice-btn.recording { background: #ef4444; transform: scale(0.95); }
+        .message-input { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 24px; font-size: 0.95rem; outline: none; resize: none; min-height: 44px; max-height: 100px; }
+        .send-btn { background: #2c5f2d; border: none; color: white; padding: 10px 18px; border-radius: 30px; font-weight: bold; cursor: pointer; }
+        .auth-panel { padding: 20px; text-align: center; background: #f3f4f6; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .login-input { padding: 10px; margin: 8px; border-radius: 30px; border: 1px solid #ccc; width: 80%; max-width: 280px; }
+        .user-info { font-size: 0.8rem; padding: 8px 16px; background: #eef2ff; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .user-name { font-weight: bold; color: #2c5f2d; }
+        .edit-name-btn { background: none; border: none; cursor: pointer; padding: 4px 8px; }
+        .logout-btn { background: #6b7280; color: white; border: none; border-radius: 20px; padding: 4px 12px; cursor: pointer; }
+        .voice-hint { font-size: 0.7rem; color: #6b7280; text-align: center; padding: 4px 12px; background: #f3f4f6; }
     </style>
 </head>
 <body>
 <div class="app">
-    <div class="chat-header">🌾 Агрофирма — заказы</div>
+    <div class="chat-header">🌾 Агрофарм — заказы</div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
         <div class="user-info" id="user-info"></div>
@@ -224,7 +55,7 @@
             <textarea id="messageInput" class="message-input" rows="1" placeholder="Напишите заказ..."></textarea>
             <button class="send-btn" id="sendBtn">Отправить</button>
         </div>
-        <div class="voice-hint" id="voiceHint">🎤 Нажмите и удерживайте для записи (телефон) / нажмите для старта и стопа (компьютер)</div>
+        <div class="voice-hint" id="voiceHint">🎤 Нажмите и удерживайте для записи</div>
     </div>
 </div>
 
@@ -249,7 +80,7 @@
     let currentUserName = '';
     let editingMessageId = null;
 
-    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
     async function getUserName(userId) {
         const doc = await usersRef.doc(userId).get();
@@ -411,8 +242,9 @@
 
     async function sendMessage(text) {
         if (!text.trim() || !currentUser) return;
+        const formatted = formatOrderText(text.trim());
         await ordersRef.add({
-            text: formatOrderText(text.trim()),
+            text: formatted,
             authorId: currentUser.uid,
             authorName: currentUserName,
             authorEmail: currentUser.email,
@@ -421,84 +253,56 @@
         });
     }
 
-    // ========== ПРОСТАЯ И НАДЁЖНАЯ ФУНКЦИЯ РАЗБИВКИ ==========
+    // ========== САМАЯ ПРОСТАЯ ФУНКЦИЯ РАЗБИВКИ ==========
     function formatOrderText(text) {
-        // Все возможные маркеры в виде карты
-        const markers = [
-            { word: 'первый', num: 1 },
-            { word: 'первая', num: 1 },
-            { word: 'первое', num: 1 },
-            { word: 'второй', num: 2 },
-            { word: 'вторая', num: 2 },
-            { word: 'второе', num: 2 },
-            { word: 'третий', num: 3 },
-            { word: 'третья', num: 3 },
-            { word: 'третье', num: 3 },
-            { word: 'четвертый', num: 4 },
-            { word: 'четвертая', num: 4 },
-            { word: 'четвертое', num: 4 },
-            { word: 'пятый', num: 5 },
-            { word: 'пятая', num: 5 },
-            { word: 'пятое', num: 5 },
-            { word: 'шестой', num: 6 },
-            { word: 'шестая', num: 6 },
-            { word: 'шестое', num: 6 },
-            { word: 'седьмой', num: 7 },
-            { word: 'седьмая', num: 7 },
-            { word: 'седьмое', num: 7 },
-            { word: 'восьмой', num: 8 },
-            { word: 'восьмая', num: 8 },
-            { word: 'восьмое', num: 8 },
-            { word: 'девятый', num: 9 },
-            { word: 'девятая', num: 9 },
-            { word: 'девятое', num: 9 },
-            { word: 'десятый', num: 10 },
-            { word: 'десятая', num: 10 },
-            { word: 'десятое', num: 10 }
+        // Список всех маркеров и их номера
+        const markerList = [
+            { words: ['первый', 'первая', 'первое'], num: 1 },
+            { words: ['второй', 'вторая', 'второе'], num: 2 },
+            { words: ['третий', 'третья', 'третье'], num: 3 },
+            { words: ['четвертый', 'четвертая', 'четвертое'], num: 4 },
+            { words: ['пятый', 'пятая', 'пятое'], num: 5 },
+            { words: ['шестой', 'шестая', 'шестое'], num: 6 },
+            { words: ['седьмой', 'седьмая', 'седьмое'], num: 7 },
+            { words: ['восьмой', 'восьмая', 'восьмое'], num: 8 },
+            { words: ['девятый', 'девятая', 'девятое'], num: 9 },
+            { words: ['десятый', 'десятая', 'десятое'], num: 10 }
         ];
         
         // Находим все маркеры в тексте
-        const foundMarkers = [];
-        const lowerText = text.toLowerCase();
+        let foundMarkers = [];
+        let lowerText = text.toLowerCase();
         
-        for (const marker of markers) {
-            // Ищем слово с учётом буквы ё
-            const wordE = marker.word;
-            const wordYo = marker.word.replace(/е/g, 'ё');
-            
-            if (lowerText.includes(wordE) || lowerText.includes(wordYo)) {
-                // Находим оригинальное слово в тексте
-                let originalWord = marker.word;
-                if (lowerText.includes(wordYo)) {
-                    // Ищем где именно ё
-                    const idx = lowerText.indexOf(wordYo);
-                    originalWord = text.substring(idx, idx + wordYo.length);
-                } else if (lowerText.includes(wordE)) {
-                    const idx = lowerText.indexOf(wordE);
-                    originalWord = text.substring(idx, idx + wordE.length);
+        // Ищем слова-маркеры
+        for (let i = 0; i < markerList.length; i++) {
+            for (let j = 0; j < markerList[i].words.length; j++) {
+                const word = markerList[i].words[j];
+                const wordWithYo = word.replace(/е/g, 'ё');
+                let index = lowerText.indexOf(word);
+                if (index === -1) index = lowerText.indexOf(wordWithYo);
+                if (index !== -1) {
+                    foundMarkers.push({
+                        word: word,
+                        num: markerList[i].num,
+                        index: index,
+                        original: text.substring(index, index + word.length)
+                    });
                 }
-                
-                foundMarkers.push({
-                    original: originalWord,
-                    number: marker.num,
-                    index: lowerText.indexOf(originalWord.toLowerCase())
-                });
             }
         }
         
         // Ищем цифры
-        const numberMatches = text.match(/\b\d+\b/g);
-        if (numberMatches) {
-            for (const num of numberMatches) {
-                const numValue = parseInt(num);
-                if (numValue >= 1 && numValue <= 10) {
-                    foundMarkers.push({
-                        original: num,
-                        number: numValue,
-                        index: text.indexOf(num),
-                        isNumber: true
-                    });
-                }
+        for (let i = 1; i <= 10; i++) {
+            const numStr = i.toString();
+            let index = text.indexOf(numStr);
+            if (index !== -1 && !foundMarkers.some(m => m.index === index)) {
+                foundMarkers.push({
+                    word: numStr,
+                    num: i,
+                    index: index,
+                    original: numStr,
+                    isNumber: true
+                });
             }
         }
         
@@ -507,40 +311,40 @@
             return text;
         }
         
-        // Сортируем по порядку появления в тексте
+        // Сортируем по порядку в тексте
         foundMarkers.sort((a, b) => a.index - b.index);
         
         // Создаём карту замен
         let currentNum = 1;
-        const replaceMap = new Map();
-        for (const marker of foundMarkers) {
-            replaceMap.set(marker.original.toLowerCase(), currentNum);
+        let replaceMap = {};
+        for (let marker of foundMarkers) {
+            replaceMap[marker.original.toLowerCase()] = currentNum;
             currentNum++;
         }
         
+        // Заменяем
         let result = text;
-        
-        // Заменяем все маркеры
-        for (const marker of foundMarkers) {
-            const newNum = replaceMap.get(marker.original.toLowerCase());
+        for (let marker of foundMarkers) {
+            let newNum = replaceMap[marker.original.toLowerCase()];
             if (newNum) {
-                const regex = new RegExp(`\\b${marker.original}\\b`, 'gi');
+                // Ищем именно это слово (не часть другого)
+                let regex = new RegExp(`\\b${marker.original}\\b`, 'gi');
                 result = result.replace(regex, `\n${newNum})`);
             }
         }
         
-        // Чистим результат
+        // Чистим
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
         
-        // Сортируем пункты
-        const lines = result.split('\n');
-        const sortedLines = lines.sort((a, b) => {
-            const numA = parseInt(a.match(/^\d+/));
-            const numB = parseInt(b.match(/^\d+/));
+        // Сортируем строки по номеру
+        let lines = result.split('\n');
+        lines.sort((a, b) => {
+            let numA = parseInt(a.match(/^\d+/));
+            let numB = parseInt(b.match(/^\d+/));
             return numA - numB;
         });
-        result = sortedLines.join('\n');
+        result = lines.join('\n');
         
         return result.includes('\n') ? result : text;
     }
@@ -575,14 +379,9 @@
 
     function initSpeech() {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            if (voiceBtn) {
-                voiceBtn.style.opacity = '0.5';
-                voiceBtn.disabled = true;
-            }
-            if (voiceHint) voiceHint.textContent = '❌ Голосовой ввод не поддерживается в этом браузере';
+            if (voiceBtn) voiceBtn.style.opacity = '0.5';
             return;
         }
-        
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
@@ -591,31 +390,14 @@
         
         recognition.onstart = () => {
             isRecording = true;
-            if (voiceBtn) {
-                voiceBtn.classList.add('recording');
-            }
-            if (voiceHint) {
-                if (isTouchDevice) {
-                    voiceHint.textContent = '🎙️ Запись... отпустите кнопку для остановки';
-                } else {
-                    voiceHint.textContent = '🎙️ Идёт запись... нажмите 🎤 ещё раз, чтобы остановить';
-                }
-            }
+            voiceBtn.classList.add('recording');
+            voiceHint.textContent = '🎙️ Запись... отпустите кнопку для остановки';
         };
         
         recognition.onend = () => {
             isRecording = false;
-            if (voiceBtn) {
-                voiceBtn.classList.remove('recording');
-            }
-            if (voiceHint) {
-                if (isTouchDevice) {
-                    voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
-                } else {
-                    voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
-                }
-            }
-            
+            voiceBtn.classList.remove('recording');
+            voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
             if (finalTranscript.trim() && messageInput) {
                 messageInput.value = finalTranscript.trim();
                 finalTranscript = '';
@@ -632,25 +414,14 @@
             }
             if (newText) {
                 finalTranscript += newText;
-                if (messageInput) {
-                    messageInput.value = finalTranscript.trim();
-                    autoResize(messageInput);
-                }
+                if (messageInput) messageInput.value = finalTranscript.trim();
             }
         };
         
         recognition.onerror = (event) => {
-            console.error('Speech error:', event.error);
-            if (event.error === 'not-allowed') {
-                alert('Разрешите доступ к микрофону в настройках браузера');
-            } else if (event.error === 'network') {
-                alert('Ошибка сети. Проверьте интернет');
-            } else if (event.error === 'no-speech') {
-                return;
-            }
-            if (isRecording) {
-                try { recognition.stop(); } catch(e) {}
-            }
+            if (event.error === 'no-speech') return;
+            if (event.error === 'not-allowed') alert('Разрешите доступ к микрофону');
+            if (isRecording) recognition.stop();
         };
     }
     
@@ -676,16 +447,11 @@
                 e.preventDefault();
                 stopRecording();
             });
-            if (voiceHint) voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
         } else {
             voiceBtn.addEventListener('click', () => {
-                if (isRecording) {
-                    stopRecording();
-                } else {
-                    startRecording();
-                }
+                if (isRecording) stopRecording();
+                else startRecording();
             });
-            if (voiceHint) voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
         }
     }
     
