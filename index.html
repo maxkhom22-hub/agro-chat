@@ -421,54 +421,67 @@
         });
     }
 
-    // ========== ФУНКЦИЯ РАЗБИВКИ (с учётом буквы Ё) ==========
+    // ========== ПРОСТАЯ И НАДЁЖНАЯ ФУНКЦИЯ РАЗБИВКИ ==========
     function formatOrderText(text) {
         // Все возможные маркеры в виде карты
-        const markerMap = {
-            // 1
-            'первый': 1, 'первая': 1, 'первое': 1,
-            // 2
-            'второй': 2, 'вторая': 2, 'второе': 2,
-            // 3
-            'третий': 3, 'третья': 3, 'третье': 3,
-            // 4
-            'четвертый': 4, 'четвертая': 4, 'четвертое': 4,
-            // 5
-            'пятый': 5, 'пятая': 5, 'пятое': 5,
-            // 6
-            'шестой': 6, 'шестая': 6, 'шестое': 6,
-            // 7
-            'седьмой': 7, 'седьмая': 7, 'седьмое': 7,
-            // 8
-            'восьмой': 8, 'восьмая': 8, 'восьмое': 8,
-            // 9
-            'девятый': 9, 'девятая': 9, 'девятое': 9,
-            // 10
-            'десятый': 10, 'десятая': 10, 'десятое': 10
-        };
+        const markers = [
+            { word: 'первый', num: 1 },
+            { word: 'первая', num: 1 },
+            { word: 'первое', num: 1 },
+            { word: 'второй', num: 2 },
+            { word: 'вторая', num: 2 },
+            { word: 'второе', num: 2 },
+            { word: 'третий', num: 3 },
+            { word: 'третья', num: 3 },
+            { word: 'третье', num: 3 },
+            { word: 'четвертый', num: 4 },
+            { word: 'четвертая', num: 4 },
+            { word: 'четвертое', num: 4 },
+            { word: 'пятый', num: 5 },
+            { word: 'пятая', num: 5 },
+            { word: 'пятое', num: 5 },
+            { word: 'шестой', num: 6 },
+            { word: 'шестая', num: 6 },
+            { word: 'шестое', num: 6 },
+            { word: 'седьмой', num: 7 },
+            { word: 'седьмая', num: 7 },
+            { word: 'седьмое', num: 7 },
+            { word: 'восьмой', num: 8 },
+            { word: 'восьмая', num: 8 },
+            { word: 'восьмое', num: 8 },
+            { word: 'девятый', num: 9 },
+            { word: 'девятая', num: 9 },
+            { word: 'девятое', num: 9 },
+            { word: 'десятый', num: 10 },
+            { word: 'десятая', num: 10 },
+            { word: 'десятое', num: 10 }
+        ];
         
-        // Находим все маркеры в тексте (с учётом ё)
+        // Находим все маркеры в тексте
         const foundMarkers = [];
+        const lowerText = text.toLowerCase();
         
-        for (const [word, number] of Object.entries(markerMap)) {
-            // Создаём вариант с ё
-            const wordWithE = word;
-            const wordWithYo = word.replace(/е/g, 'ё');
+        for (const marker of markers) {
+            // Ищем слово с учётом буквы ё
+            const wordE = marker.word;
+            const wordYo = marker.word.replace(/е/g, 'ё');
             
-            const regex1 = new RegExp(`\\b${wordWithE}\\b`, 'gi');
-            const regex2 = new RegExp(`\\b${wordWithYo}\\b`, 'gi');
-            
-            if (regex1.test(text) || regex2.test(text)) {
-                let originalWord = word;
-                const match1 = text.match(regex1);
-                const match2 = text.match(regex2);
-                if (match2) originalWord = match2[0];
-                else if (match1) originalWord = match1[0];
+            if (lowerText.includes(wordE) || lowerText.includes(wordYo)) {
+                // Находим оригинальное слово в тексте
+                let originalWord = marker.word;
+                if (lowerText.includes(wordYo)) {
+                    // Ищем где именно ё
+                    const idx = lowerText.indexOf(wordYo);
+                    originalWord = text.substring(idx, idx + wordYo.length);
+                } else if (lowerText.includes(wordE)) {
+                    const idx = lowerText.indexOf(wordE);
+                    originalWord = text.substring(idx, idx + wordE.length);
+                }
                 
-                foundMarkers.push({ 
-                    word: word, 
-                    number: number, 
-                    originalWord: originalWord
+                foundMarkers.push({
+                    original: originalWord,
+                    number: marker.num,
+                    index: lowerText.indexOf(originalWord.toLowerCase())
                 });
             }
         }
@@ -479,11 +492,11 @@
             for (const num of numberMatches) {
                 const numValue = parseInt(num);
                 if (numValue >= 1 && numValue <= 10) {
-                    foundMarkers.push({ 
-                        word: num, 
-                        number: numValue, 
-                        originalWord: num,
-                        isNumber: true 
+                    foundMarkers.push({
+                        original: num,
+                        number: numValue,
+                        index: text.indexOf(num),
+                        isNumber: true
                     });
                 }
             }
@@ -494,28 +507,24 @@
             return text;
         }
         
-        // Сортируем маркеры по порядку появления в тексте
-        foundMarkers.sort((a, b) => {
-            const posA = text.toLowerCase().indexOf(a.originalWord.toLowerCase());
-            const posB = text.toLowerCase().indexOf(b.originalWord.toLowerCase());
-            return posA - posB;
-        });
+        // Сортируем по порядку появления в тексте
+        foundMarkers.sort((a, b) => a.index - b.index);
         
         // Создаём карту замен
         let currentNum = 1;
-        const replacementMap = new Map();
+        const replaceMap = new Map();
         for (const marker of foundMarkers) {
-            replacementMap.set(marker.originalWord.toLowerCase(), currentNum);
+            replaceMap.set(marker.original.toLowerCase(), currentNum);
             currentNum++;
         }
         
         let result = text;
         
-        // Заменяем все маркеры на пункты
+        // Заменяем все маркеры
         for (const marker of foundMarkers) {
-            const newNum = replacementMap.get(marker.originalWord.toLowerCase());
+            const newNum = replaceMap.get(marker.original.toLowerCase());
             if (newNum) {
-                const regex = new RegExp(`\\b${marker.originalWord}\\b`, 'gi');
+                const regex = new RegExp(`\\b${marker.original}\\b`, 'gi');
                 result = result.replace(regex, `\n${newNum})`);
             }
         }
@@ -524,7 +533,7 @@
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
         
-        // Сортируем строки по номеру пункта
+        // Сортируем пункты
         const lines = result.split('\n');
         const sortedLines = lines.sort((a, b) => {
             const numA = parseInt(a.match(/^\d+/));
