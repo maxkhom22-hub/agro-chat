@@ -242,7 +242,6 @@
     async function sendMessage(text) {
         if (!text.trim() || !currentUser) return;
         
-        // Показываем отладку
         const originalText = text;
         const formattedText = formatOrderText(text.trim());
         
@@ -258,7 +257,7 @@
         });
     }
 
-    // ========== ПРОСТАЯ ФУНКЦИЯ ==========
+    // ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ ==========
     function formatOrderText(text) {
         let result = text;
         
@@ -278,28 +277,73 @@
             result = newParts.join('').trim();
         }
         
-        // Заменяем слова-маркеры на пункты
-        const words = [
-            'первый', 'первая', 'первое',
-            'второй', 'вторая', 'второе',
-            'третий', 'третья', 'третье',
-            'четвертый', 'четвертая', 'четвертое',
-            'пятый', 'пятая', 'пятое'
+        // Слова-маркеры
+        const markers = [
+            { words: ['первый', 'первая', 'первое'], num: 1 },
+            { words: ['второй', 'вторая', 'второе'], num: 2 },
+            { words: ['третий', 'третья', 'третье'], num: 3 },
+            { words: ['четвертый', 'четвертая', 'четвертое'], num: 4 },
+            { words: ['пятый', 'пятая', 'пятое'], num: 5 },
+            { words: ['шестой', 'шестая', 'шестое'], num: 6 },
+            { words: ['седьмой', 'седьмая', 'седьмое'], num: 7 },
+            { words: ['восьмой', 'восьмая', 'восьмое'], num: 8 },
+            { words: ['девятый', 'девятая', 'девятое'], num: 9 },
+            { words: ['десятый', 'десятая', 'десятое'], num: 10 }
         ];
         
-        let num = 1;
-        for (const word of words) {
-            const regex = new RegExp(`\\b${word}\\b`, 'gi');
-            if (regex.test(result)) {
-                result = result.replace(regex, `\n${num})`);
-                num++;
+        // Находим все маркеры
+        let foundMarkers = [];
+        let lowerResult = result.toLowerCase();
+        
+        for (let m of markers) {
+            for (let w of m.words) {
+                let pos = lowerResult.indexOf(w);
+                if (pos === -1) {
+                    let wWithYo = w.replace(/е/g, 'ё');
+                    pos = lowerResult.indexOf(wWithYo);
+                    if (pos !== -1) {
+                        foundMarkers.push({ word: wWithYo, num: m.num, pos: pos, original: result.substr(pos, wWithYo.length) });
+                    }
+                } else {
+                    foundMarkers.push({ word: w, num: m.num, pos: pos, original: result.substr(pos, w.length) });
+                }
             }
+        }
+        
+        // Убираем дубликаты
+        let unique = [];
+        for (let f of foundMarkers) {
+            if (!unique.some(u => u.pos === f.pos)) {
+                unique.push(f);
+            }
+        }
+        foundMarkers = unique;
+        foundMarkers.sort((a, b) => a.pos - b.pos);
+        
+        if (foundMarkers.length < 2) {
+            return result;
+        }
+        
+        // Заменяем
+        let currentNum = 1;
+        for (let marker of foundMarkers) {
+            let regex = new RegExp(marker.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            result = result.replace(regex, `\n${currentNum})`);
+            currentNum++;
         }
         
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
         
-        return result.includes('\n') ? result : text;
+        let lines = result.split('\n');
+        lines.sort((a, b) => {
+            let na = parseInt(a.match(/^\d+/));
+            let nb = parseInt(b.match(/^\d+/));
+            return na - nb;
+        });
+        result = lines.join('\n');
+        
+        return result;
     }
 
     // ========== ГОЛОСОВОЙ ВВОД ==========
