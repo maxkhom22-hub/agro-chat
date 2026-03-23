@@ -8,53 +8,227 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui; }
-        html, body { height: 100%; overflow: hidden; }
-        body { background: #e5e7eb; display: flex; justify-content: center; align-items: center; }
-        .app { max-width: 800px; width: 100%; height: 95vh; background: white; border-radius: 28px; display: flex; flex-direction: column; overflow: hidden; margin: 10px; box-shadow: 0 20px 35px -10px rgba(0,0,0,0.2); }
-        .chat-header { background: #2c5f2d; color: white; padding: 20px; font-weight: bold; font-size: 1.3rem; text-align: center; flex-shrink: 0; }
-        .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: #f9fafb; }
-        .message { background: white; border-radius: 20px; padding: 12px 16px; border-left: 5px solid #ccc; }
-        .message.completed { background: #d1fae5; border-left-color: #10b981; }
-        .message-text { font-size: 1rem; white-space: pre-wrap; }
-        .message-meta { display: flex; justify-content: space-between; font-size: 0.75rem; color: #6b7280; margin-top: 8px; flex-wrap: wrap; gap: 8px; }
-        .message-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-        .complete-btn, .undo-btn, .delete-btn, .edit-btn, .save-edit-btn, .cancel-edit-btn { border: none; padding: 4px 12px; border-radius: 30px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #e5e7eb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app {
+            max-width: 800px;
+            width: 100%;
+            height: 95vh;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -10px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: 10px;
+        }
+        .chat-header {
+            background: #2c5f2d;
+            color: white;
+            padding: 20px;
+            font-weight: bold;
+            font-size: 1.3rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f9fafb;
+        }
+        .message {
+            background: white;
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border-left: 5px solid #ccc;
+        }
+        .message.completed {
+            background: #d1fae5;
+            border-left-color: #10b981;
+        }
+        .message-text {
+            font-size: 1rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .message-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #6b7280;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .message-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .complete-btn, .undo-btn, .delete-btn, .edit-btn, .save-edit-btn, .cancel-edit-btn {
+            border: none;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
         .complete-btn { background: #10b981; color: white; }
         .undo-btn { background: #f59e0b; color: white; }
         .delete-btn { background: #ef4444; color: white; }
         .edit-btn { background: #3b82f6; color: white; }
         .save-edit-btn { background: #10b981; color: white; }
         .cancel-edit-btn { background: #6b7280; color: white; }
-        .edit-textarea { width: 100%; padding: 8px; border: 1px solid #10b981; border-radius: 12px; margin-bottom: 8px; }
-        .input-area { padding: 12px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0; }
-        .voice-btn { background: #3b82f6; border: none; color: white; font-size: 1.3rem; width: 48px; height: 48px; border-radius: 30px; cursor: pointer; flex-shrink: 0; touch-action: manipulation; }
-        .voice-btn.recording { background: #ef4444; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        .message-input { flex: 1; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 24px; font-size: 1rem; outline: none; resize: none; min-height: 48px; max-height: 100px; }
-        .send-btn { background: #2c5f2d; border: none; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; cursor: pointer; }
-        .auth-panel { padding: 20px; text-align: center; background: #f3f4f6; flex: 1; display: flex; flex-direction: column; justify-content: center; }
-        .login-input { padding: 10px; margin: 8px; border-radius: 30px; border: 1px solid #ccc; width: 80%; max-width: 280px; }
-        .user-info { font-size: 0.8rem; padding: 8px 16px; background: #eef2ff; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .user-name { font-weight: bold; color: #2c5f2d; }
-        .edit-name-btn { background: none; border: none; cursor: pointer; padding: 4px 8px; }
-        .logout-btn { background: #6b7280; color: white; border: none; border-radius: 20px; padding: 4px 12px; cursor: pointer; }
-        .voice-hint { font-size: 0.7rem; color: #6b7280; text-align: center; padding: 4px 12px; background: #f3f4f6; }
+        .edit-textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #10b981;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            margin-bottom: 8px;
+        }
+        .input-area {
+            padding: 12px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+        .voice-btn {
+            background: #3b82f6;
+            border: none;
+            color: white;
+            font-size: 1.3rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 30px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: 0.1s;
+            touch-action: manipulation;
+        }
+        .voice-btn.recording {
+            background: #ef4444;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 24px;
+            font-size: 1rem;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+            min-height: 48px;
+            max-height: 100px;
+        }
+        .send-btn {
+            background: #2c5f2d;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .auth-panel {
+            padding: 20px;
+            text-align: center;
+            background: #f3f4f6;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .login-input {
+            padding: 10px;
+            margin: 8px;
+            border-radius: 30px;
+            border: 1px solid #ccc;
+            width: 80%;
+            max-width: 280px;
+        }
+        .user-info {
+            font-size: 0.8rem;
+            padding: 8px 16px;
+            background: #eef2ff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .user-name {
+            font-weight: bold;
+            color: #2c5f2d;
+        }
+        .edit-name-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        .logout-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 4px 12px;
+            cursor: pointer;
+        }
+        .voice-hint {
+            font-size: 0.7rem;
+            color: #6b7280;
+            text-align: center;
+            padding: 4px 12px;
+            background: #f3f4f6;
+        }
+        hr {
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
 <div class="app">
-    <div class="chat-header">🌾 Агрофирма — заказы (голосом)</div>
+    <div class="chat-header">🌾 Агрофарм — заказы</div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
         <div class="user-info" id="user-info"></div>
         <div class="messages" id="messages-list"></div>
         <div class="input-area">
             <button class="voice-btn" id="voiceBtn">🎤</button>
-            <textarea id="messageInput" class="message-input" rows="1" placeholder="Напишите заказ... (Ctrl+Enter - отправить)"></textarea>
+            <textarea id="messageInput" class="message-input" rows="1" placeholder="Напишите заказ..."></textarea>
             <button class="send-btn" id="sendBtn">Отправить</button>
         </div>
-        <div class="voice-hint" id="voiceHint">🎤 Нажмите и удерживайте для записи</div>
+        <div class="voice-hint" id="voiceHint">🎤 Нажмите и удерживайте для записи (телефон) / нажмите для старта и стопа (компьютер)</div>
     </div>
 </div>
 
@@ -241,14 +415,8 @@
 
     async function sendMessage(text) {
         if (!text.trim() || !currentUser) return;
-        
-        const originalText = text;
-        const formattedText = formatOrderText(text.trim());
-        
-        alert('Оригинал: ' + originalText + '\n\nПосле обработки: ' + formattedText);
-        
         await ordersRef.add({
-            text: formattedText,
+            text: formatOrderText(text.trim()),
             authorId: currentUser.uid,
             authorName: currentUserName,
             authorEmail: currentUser.email,
@@ -257,7 +425,7 @@
         });
     }
 
-    // ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ ==========
+    // ========== ФУНКЦИЯ РАЗБИВКИ НА ПУНКТЫ ==========
     function formatOrderText(text) {
         let result = text;
         
@@ -277,7 +445,7 @@
             result = newParts.join('').trim();
         }
         
-        // Слова-маркеры
+        // Слова-маркеры и их номера
         const markers = [
             { words: ['первый', 'первая', 'первое'], num: 1 },
             { words: ['второй', 'вторая', 'второе'], num: 2 },
@@ -291,7 +459,7 @@
             { words: ['десятый', 'десятая', 'десятое'], num: 10 }
         ];
         
-        // Находим все маркеры
+        // Находим все маркеры в тексте
         let foundMarkers = [];
         let lowerResult = result.toLowerCase();
         
@@ -320,11 +488,12 @@
         foundMarkers = unique;
         foundMarkers.sort((a, b) => a.pos - b.pos);
         
+        // Если меньше 2 маркеров — не разбиваем
         if (foundMarkers.length < 2) {
             return result;
         }
         
-        // Заменяем
+        // Заменяем маркеры на номера пунктов
         let currentNum = 1;
         for (let marker of foundMarkers) {
             let regex = new RegExp(marker.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
@@ -332,9 +501,11 @@
             currentNum++;
         }
         
+        // Чистим результат
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
         
+        // Сортируем строки по номеру
         let lines = result.split('\n');
         lines.sort((a, b) => {
             let na = parseInt(a.match(/^\d+/));
@@ -343,7 +514,7 @@
         });
         result = lines.join('\n');
         
-        return result;
+        return result.includes('\n') ? result : text;
     }
 
     // ========== ГОЛОСОВОЙ ВВОД ==========
