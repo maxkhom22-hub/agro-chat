@@ -421,133 +421,110 @@
         });
     }
 
-    // ========== НОВАЯ ФУНКЦИЯ РАЗБИВКИ ==========
-    // Работает с любыми маркерами: цифры, слова, разные падежи и роды
+    // ========== ФУНКЦИЯ РАЗБИВКИ (с учётом буквы Ё) ==========
     function formatOrderText(text) {
-        // Нормализуем текст: заменяем слова-числа на цифры
-        let normalized = text;
-        
-        const wordToNumber = {
-            'один': '1', 'одна': '1', 'одно': '1',
-            'два': '2', 'две': '2',
-            'три': '3',
-            'четыре': '4',
-            'пять': '5',
-            'шесть': '6',
-            'семь': '7',
-            'восемь': '8',
-            'девять': '9',
-            'десять': '10'
+        // Все возможные маркеры в виде карты
+        const markerMap = {
+            // 1
+            'первый': 1, 'первая': 1, 'первое': 1,
+            // 2
+            'второй': 2, 'вторая': 2, 'второе': 2,
+            // 3
+            'третий': 3, 'третья': 3, 'третье': 3,
+            // 4
+            'четвертый': 4, 'четвертая': 4, 'четвертое': 4,
+            // 5
+            'пятый': 5, 'пятая': 5, 'пятое': 5,
+            // 6
+            'шестой': 6, 'шестая': 6, 'шестое': 6,
+            // 7
+            'седьмой': 7, 'седьмая': 7, 'седьмое': 7,
+            // 8
+            'восьмой': 8, 'восьмая': 8, 'восьмое': 8,
+            // 9
+            'девятый': 9, 'девятая': 9, 'девятое': 9,
+            // 10
+            'десятый': 10, 'десятая': 10, 'десятое': 10
         };
         
-        for (const [word, num] of Object.entries(wordToNumber)) {
-            const regex = new RegExp(`\\b${word}\\b`, 'gi');
-            normalized = normalized.replace(regex, num);
-        }
+        // Находим все маркеры в тексте (с учётом ё)
+        const foundMarkers = [];
         
-        // Находим ВСЕ маркеры (цифры и слова-порядковые)
-        const allMarkers = [];
-        
-        // Цифры
-        const numberMatches = normalized.match(/\b\d+\b/g);
-        if (numberMatches) {
-            for (const num of numberMatches) {
-                allMarkers.push({ type: 'number', value: num });
+        for (const [word, number] of Object.entries(markerMap)) {
+            // Создаём вариант с ё
+            const wordWithE = word;
+            const wordWithYo = word.replace(/е/g, 'ё');
+            
+            const regex1 = new RegExp(`\\b${wordWithE}\\b`, 'gi');
+            const regex2 = new RegExp(`\\b${wordWithYo}\\b`, 'gi');
+            
+            if (regex1.test(text) || regex2.test(text)) {
+                let originalWord = word;
+                const match1 = text.match(regex1);
+                const match2 = text.match(regex2);
+                if (match2) originalWord = match2[0];
+                else if (match1) originalWord = match1[0];
+                
+                foundMarkers.push({ 
+                    word: word, 
+                    number: number, 
+                    originalWord: originalWord
+                });
             }
         }
         
-        // Слова-порядковые (все формы)
-        const orderWords = [
-            'первый', 'первая', 'первое',
-            'второй', 'вторая', 'второе',
-            'третий', 'третья', 'третье',
-            'четвертый', 'четвертая', 'четвертое',
-            'пятый', 'пятая', 'пятое',
-            'шестой', 'шестая', 'шестое',
-            'седьмой', 'седьмая', 'седьмое',
-            'восьмой', 'восьмая', 'восьмое',
-            'девятый', 'девятая', 'девятое',
-            'десятый', 'десятая', 'десятое'
-        ];
-        
-        for (let i = 0; i < orderWords.length; i++) {
-            const word = orderWords[i];
-            const regex = new RegExp(`\\b${word}\\b`, 'gi');
-            if (regex.test(text)) {
-                const num = Math.floor(i / 3) + 1;
-                allMarkers.push({ type: 'word', value: num, original: word });
+        // Ищем цифры
+        const numberMatches = text.match(/\b\d+\b/g);
+        if (numberMatches) {
+            for (const num of numberMatches) {
+                const numValue = parseInt(num);
+                if (numValue >= 1 && numValue <= 10) {
+                    foundMarkers.push({ 
+                        word: num, 
+                        number: numValue, 
+                        originalWord: num,
+                        isNumber: true 
+                    });
+                }
             }
         }
         
         // Если меньше 2 маркеров — не разбиваем
-        if (allMarkers.length < 2) {
+        if (foundMarkers.length < 2) {
             return text;
         }
         
-        // Находим позиции маркеров в исходном тексте
-        const markersWithPos = [];
-        for (const marker of allMarkers) {
-            let searchText = '';
-            if (marker.type === 'number') {
-                searchText = marker.value;
-            } else {
-                searchText = marker.original;
-            }
-            const pos = text.toLowerCase().indexOf(searchText.toLowerCase());
-            if (pos !== -1) {
-                markersWithPos.push({ ...marker, pos: pos });
-            }
-        }
-        markersWithPos.sort((a, b) => a.pos - b.pos);
+        // Сортируем маркеры по порядку появления в тексте
+        foundMarkers.sort((a, b) => {
+            const posA = text.toLowerCase().indexOf(a.originalWord.toLowerCase());
+            const posB = text.toLowerCase().indexOf(b.originalWord.toLowerCase());
+            return posA - posB;
+        });
         
-        // Создаём карту: маркер -> порядковый номер пункта
-        const markerToNumber = new Map();
+        // Создаём карту замен
         let currentNum = 1;
-        for (const marker of markersWithPos) {
-            markerToNumber.set(marker.original || marker.value, currentNum);
+        const replacementMap = new Map();
+        for (const marker of foundMarkers) {
+            replacementMap.set(marker.originalWord.toLowerCase(), currentNum);
             currentNum++;
         }
         
         let result = text;
         
-        // Заменяем цифры
-        if (numberMatches) {
-            const parts = result.split(/(\b\d+\b)/);
-            let newParts = [];
-            for (let i = 0; i < parts.length; i++) {
-                if (/^\b\d+\b$/.test(parts[i].trim())) {
-                    const num = parts[i].trim();
-                    const newNum = markerToNumber.get(num);
-                    if (newNum) {
-                        newParts.push(`\n${newNum})`);
-                    } else {
-                        newParts.push(`\n${num})`);
-                    }
-                } else {
-                    if (parts[i].trim()) {
-                        newParts.push(parts[i]);
-                    }
-                }
-            }
-            result = newParts.join('').trim();
-        }
-        
-        // Заменяем слова-порядковые
-        for (const marker of markersWithPos) {
-            if (marker.type === 'word') {
-                const newNum = markerToNumber.get(marker.original);
-                if (newNum) {
-                    const regex = new RegExp(`\\b${marker.original}\\b`, 'gi');
-                    result = result.replace(regex, `\n${newNum})`);
-                }
+        // Заменяем все маркеры на пункты
+        for (const marker of foundMarkers) {
+            const newNum = replacementMap.get(marker.originalWord.toLowerCase());
+            if (newNum) {
+                const regex = new RegExp(`\\b${marker.originalWord}\\b`, 'gi');
+                result = result.replace(regex, `\n${newNum})`);
             }
         }
         
-        // Чистим и форматируем
+        // Чистим результат
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
         
-        // Сортируем пункты по порядку
+        // Сортируем строки по номеру пункта
         const lines = result.split('\n');
         const sortedLines = lines.sort((a, b) => {
             const numA = parseInt(a.match(/^\d+/));
@@ -601,7 +578,7 @@
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
         recognition.interimResults = false;
-        recognition.continuous = true;  // НЕ останавливается после паузы
+        recognition.continuous = true;
         
         recognition.onstart = () => {
             isRecording = true;
@@ -660,7 +637,6 @@
             } else if (event.error === 'network') {
                 alert('Ошибка сети. Проверьте интернет');
             } else if (event.error === 'no-speech') {
-                // Игнорируем, не останавливаем запись
                 return;
             }
             if (isRecording) {
