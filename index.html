@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Агрофирма: голосовые заказы</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -14,18 +14,19 @@
             box-sizing: border-box;
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
         }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
         body {
             background: #e5e7eb;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            height: 100vh;
-            overflow: hidden;
         }
         .app {
-            max-width: 800px;
             width: 100%;
+            max-width: 800px;
             height: 100%;
             background: white;
             display: flex;
@@ -35,9 +36,9 @@
         .chat-header {
             background: #2c5f2d;
             color: white;
-            padding: 20px;
+            padding: 16px 20px;
             font-weight: bold;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             text-align: center;
             flex-shrink: 0;
         }
@@ -49,21 +50,19 @@
             flex-direction: column;
             gap: 12px;
             background: #f9fafb;
-            -webkit-overflow-scrolling: touch;
         }
         .message {
             background: white;
-            border-radius: 20px;
-            padding: 12px 16px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            border-left: 5px solid #ccc;
+            border-radius: 16px;
+            padding: 10px 14px;
+            border-left: 4px solid #ccc;
         }
         .message.completed {
             background: #d1fae5;
             border-left-color: #10b981;
         }
         .message-text {
-            font-size: 1rem;
+            font-size: 0.95rem;
             line-height: 1.4;
             white-space: pre-wrap;
             word-break: break-word;
@@ -72,21 +71,21 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #6b7280;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
             margin-top: 8px;
         }
         .message-actions {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
         }
         .complete-btn, .undo-btn, .delete-btn, .edit-btn, .save-edit-btn, .cancel-edit-btn {
             border: none;
-            padding: 4px 12px;
-            border-radius: 30px;
+            padding: 4px 10px;
+            border-radius: 20px;
             font-size: 0.7rem;
             font-weight: bold;
             cursor: pointer;
@@ -127,37 +126,33 @@
             flex-shrink: 0;
             transition: 0.1s;
             touch-action: manipulation;
+            user-select: none;
         }
         .voice-btn.recording {
             background: #ef4444;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+            transform: scale(0.95);
         }
         .message-input {
             flex: 1;
-            padding: 12px 16px;
+            padding: 10px 14px;
             border: 1px solid #d1d5db;
             border-radius: 24px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             outline: none;
             resize: none;
             font-family: inherit;
-            min-height: 48px;
+            min-height: 44px;
             max-height: 100px;
-            background: white;
         }
         .send-btn {
             background: #2c5f2d;
             border: none;
             color: white;
-            padding: 10px 20px;
+            padding: 10px 18px;
             border-radius: 30px;
             font-weight: bold;
             cursor: pointer;
+            flex-shrink: 0;
         }
         .auth-panel {
             padding: 20px;
@@ -194,14 +189,19 @@
             border: none;
             cursor: pointer;
             padding: 4px 8px;
+            font-size: 0.8rem;
         }
         .logout-btn {
             background: #6b7280;
             color: white;
             border: none;
             border-radius: 20px;
+            font-size: 0.7rem;
             padding: 4px 12px;
             cursor: pointer;
+        }
+        hr {
+            margin: 15px 0;
         }
         .voice-hint {
             font-size: 0.7rem;
@@ -224,7 +224,7 @@
             <textarea id="messageInput" class="message-input" rows="1" placeholder="Напишите заказ..."></textarea>
             <button class="send-btn" id="sendBtn">Отправить</button>
         </div>
-        <div class="voice-hint" id="voiceHint"></div>
+        <div class="voice-hint" id="voiceHint">🎤 Нажмите и удерживайте для записи (телефон) / нажмите для старта и стопа (компьютер)</div>
     </div>
 </div>
 
@@ -249,7 +249,8 @@
     let currentUserName = '';
     let editingMessageId = null;
 
-    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    // Определяем, телефон ли это
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
 
     async function getUserName(userId) {
         const doc = await usersRef.doc(userId).get();
@@ -422,14 +423,24 @@
     }
 
     function formatOrderText(text) {
+        const numbers = text.match(/\b\d+\b/g);
+        const markers = text.match(/\b(первый|второй|третий|четвертый|пятый|шестой|седьмой|восьмой|девятый|десятый)\b/gi);
+        
+        const hasMultipleNumbers = numbers && numbers.length >= 2;
+        const hasMultipleMarkers = markers && markers.length >= 2;
+        
+        if (!hasMultipleNumbers && !hasMultipleMarkers) {
+            return text;
+        }
+        
         let result = text;
         
-        if (result.match(/\d+/g)) {
-            const parts = result.split(/(\d+)/);
+        if (hasMultipleNumbers) {
+            const parts = result.split(/(\b\d+\b)/);
             let newParts = [];
             for (let i = 0; i < parts.length; i++) {
-                if (parts[i].match(/^\d+$/)) {
-                    newParts.push(`\n${parts[i]})`);
+                if (/^\b\d+\b$/.test(parts[i].trim())) {
+                    newParts.push(`\n${parts[i].trim()})`);
                 } else {
                     if (parts[i].trim()) {
                         newParts.push(parts[i]);
@@ -439,43 +450,20 @@
             result = newParts.join('').trim();
         }
         
-        const markers = [
-            ['первый', 'первая', 'первое'],
-            ['второй', 'вторая', 'второе'],
-            ['третий', 'третья', 'третье'],
-            ['четвертый', 'четвертая', 'четвертое'],
-            ['пятый', 'пятая', 'пятое'],
-            ['шестой', 'шестая', 'шестое'],
-            ['седьмой', 'седьмая', 'седьмое'],
-            ['восьмой', 'восьмая', 'восьмое'],
-            ['девятый', 'девятая', 'девятое'],
-            ['десятый', 'десятая', 'десятое']
-        ];
-        
-        let num = 1;
-        for (const group of markers) {
-            for (const word of group) {
+        if (hasMultipleMarkers) {
+            const wordList = ['первый','второй','третий','четвертый','пятый','шестой','седьмой','восьмой','девятый','десятый'];
+            let num = 1;
+            for (const word of wordList) {
                 const regex = new RegExp(`\\b${word}\\b`, 'gi');
                 if (regex.test(result)) {
                     result = result.replace(regex, `\n${num})`);
-                    break;
+                    num++;
                 }
             }
-            num++;
         }
         
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
-        
-        const lines = result.split('\n');
-        if (lines.length > 1) {
-            lines.sort((a, b) => {
-                const na = parseInt(a.match(/^\d+/));
-                const nb = parseInt(b.match(/^\d+/));
-                return na - nb;
-            });
-            result = lines.join('\n');
-        }
         
         return result.includes('\n') ? result : text;
     }
@@ -484,6 +472,7 @@
     let recognition = null;
     let isRecording = false;
     let finalTranscript = '';
+    let pressTimer = null;
     
     const voiceBtn = document.getElementById('voiceBtn');
     const messageInput = document.getElementById('messageInput');
@@ -510,8 +499,11 @@
 
     function initSpeech() {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            if (voiceBtn) voiceBtn.style.opacity = '0.5';
-            if (voiceHint) voiceHint.textContent = '❌ Голосовой ввод не поддерживается';
+            if (voiceBtn) {
+                voiceBtn.style.opacity = '0.5';
+                voiceBtn.disabled = true;
+            }
+            if (voiceHint) voiceHint.textContent = '❌ Голосовой ввод не поддерживается в этом браузере';
             return;
         }
         
@@ -523,7 +515,9 @@
         
         recognition.onstart = () => {
             isRecording = true;
-            if (voiceBtn) voiceBtn.classList.add('recording');
+            if (voiceBtn) {
+                voiceBtn.classList.add('recording');
+            }
             if (voiceHint) {
                 if (isTouchDevice) {
                     voiceHint.textContent = '🎙️ Запись... отпустите кнопку для остановки';
@@ -535,7 +529,9 @@
         
         recognition.onend = () => {
             isRecording = false;
-            if (voiceBtn) voiceBtn.classList.remove('recording');
+            if (voiceBtn) {
+                voiceBtn.classList.remove('recording');
+            }
             if (voiceHint) {
                 if (isTouchDevice) {
                     voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
@@ -543,6 +539,7 @@
                     voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
                 }
             }
+            
             if (finalTranscript.trim() && messageInput) {
                 messageInput.value = finalTranscript.trim();
                 finalTranscript = '';
@@ -559,14 +556,23 @@
             }
             if (newText) {
                 finalTranscript += newText;
-                if (messageInput) messageInput.value = finalTranscript.trim();
+                if (messageInput) {
+                    messageInput.value = finalTranscript.trim();
+                    autoResize(messageInput);
+                }
             }
         };
         
         recognition.onerror = (event) => {
-            if (event.error === 'no-speech') return;
-            if (event.error === 'not-allowed') alert('Разрешите доступ к микрофону');
-            if (isRecording) recognition.stop();
+            console.error('Speech error:', event.error);
+            if (event.error === 'not-allowed') {
+                alert('Разрешите доступ к микрофону в настройках браузера');
+            } else if (event.error === 'network') {
+                alert('Ошибка сети. Проверьте интернет');
+            }
+            if (isRecording) {
+                try { recognition.stop(); } catch(e) {}
+            }
         };
     }
     
@@ -576,27 +582,40 @@
         textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
     
+    // Настройка обработчиков в зависимости от устройства
     function setupVoiceHandlers() {
         if (!voiceBtn || !recognition) return;
         
         if (isTouchDevice) {
+            // Телефон: нажал и держишь → запись, отпустил → стоп
             voiceBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 startRecording();
             });
+            
             voiceBtn.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 stopRecording();
             });
+            
             voiceBtn.addEventListener('touchcancel', (e) => {
                 e.preventDefault();
                 stopRecording();
             });
+            
+            if (voiceHint) voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
+            
         } else {
+            // Компьютер: нажал → запись, нажал ещё раз → стоп
             voiceBtn.addEventListener('click', () => {
-                if (isRecording) stopRecording();
-                else startRecording();
+                if (isRecording) {
+                    stopRecording();
+                } else {
+                    startRecording();
+                }
             });
+            
+            if (voiceHint) voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
         }
     }
     
@@ -619,13 +638,6 @@
             }
         });
         messageInput.addEventListener('input', () => autoResize(messageInput));
-        
-        // ФИКС: при фокусе прокручиваем поле ввода в видимую область
-        messageInput.addEventListener('focus', () => {
-            setTimeout(() => {
-                messageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 300);
-        });
     }
     
     function escapeHtml(str) {
@@ -635,14 +647,6 @@
     function escapeHtmlForEdit(str) {
         if (!str) return '';
         return str.replace(/<br>/g, '\n');
-    }
-    
-    if (voiceHint) {
-        if (isTouchDevice) {
-            voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
-        } else {
-            voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
-        }
     }
     
     initSpeech();
