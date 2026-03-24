@@ -52,6 +52,7 @@
             flex-direction: column;
             gap: 12px;
             background: #f9fafb;
+            -webkit-overflow-scrolling: touch;
         }
         .message {
             background: white;
@@ -218,17 +219,17 @@
 </head>
 <body>
 <div class="app">
-    <div class="chat-header">🌾 Агрофарм — заказы</div>
+    <div class="chat-header">🌾 Агрофирма — заказы (голосом)</div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
         <div class="user-info" id="user-info"></div>
         <div class="messages" id="messages-list"></div>
         <div class="input-area">
             <button class="voice-btn" id="voiceBtn">🎤</button>
-            <textarea id="messageInput" class="message-input" rows="1" placeholder="Напишите заказ..."></textarea>
+            <textarea id="messageInput" class="message-input" rows="1" placeholder="Напишите заказ... (Ctrl+Enter - отправить)"></textarea>
             <button class="send-btn" id="sendBtn">Отправить</button>
         </div>
-        <div class="voice-hint" id="voiceHint">🎤 Нажмите и удерживайте для записи (телефон) / нажмите для старта и стопа (компьютер)</div>
+        <div class="voice-hint" id="voiceHint"></div>
     </div>
 </div>
 
@@ -425,7 +426,7 @@
         });
     }
 
-    // ========== ФУНКЦИЯ РАЗБИВКИ НА ПУНКТЫ ==========
+    // ========== РАБОЧАЯ ФУНКЦИЯ РАЗБИВКИ ==========
     function formatOrderText(text) {
         let result = text;
         
@@ -445,74 +446,45 @@
             result = newParts.join('').trim();
         }
         
-        // Слова-маркеры и их номера
+        // Заменяем слова-маркеры
         const markers = [
-            { words: ['первый', 'первая', 'первое'], num: 1 },
-            { words: ['второй', 'вторая', 'второе'], num: 2 },
-            { words: ['третий', 'третья', 'третье'], num: 3 },
-            { words: ['четвертый', 'четвертая', 'четвертое'], num: 4 },
-            { words: ['пятый', 'пятая', 'пятое'], num: 5 },
-            { words: ['шестой', 'шестая', 'шестое'], num: 6 },
-            { words: ['седьмой', 'седьмая', 'седьмое'], num: 7 },
-            { words: ['восьмой', 'восьмая', 'восьмое'], num: 8 },
-            { words: ['девятый', 'девятая', 'девятое'], num: 9 },
-            { words: ['десятый', 'десятая', 'десятое'], num: 10 }
+            ['первый', 'первая', 'первое'],
+            ['второй', 'вторая', 'второе'],
+            ['третий', 'третья', 'третье'],
+            ['четвертый', 'четвертая', 'четвертое'],
+            ['пятый', 'пятая', 'пятое'],
+            ['шестой', 'шестая', 'шестое'],
+            ['седьмой', 'седьмая', 'седьмое'],
+            ['восьмой', 'восьмая', 'восьмое'],
+            ['девятый', 'девятая', 'девятое'],
+            ['десятый', 'десятая', 'десятое']
         ];
         
-        // Находим все маркеры в тексте
-        let foundMarkers = [];
-        let lowerResult = result.toLowerCase();
-        
-        for (let m of markers) {
-            for (let w of m.words) {
-                let pos = lowerResult.indexOf(w);
-                if (pos === -1) {
-                    let wWithYo = w.replace(/е/g, 'ё');
-                    pos = lowerResult.indexOf(wWithYo);
-                    if (pos !== -1) {
-                        foundMarkers.push({ word: wWithYo, num: m.num, pos: pos, original: result.substr(pos, wWithYo.length) });
-                    }
-                } else {
-                    foundMarkers.push({ word: w, num: m.num, pos: pos, original: result.substr(pos, w.length) });
+        let num = 1;
+        for (const group of markers) {
+            for (const word of group) {
+                const regex = new RegExp(`\\b${word}\\b`, 'gi');
+                if (regex.test(result)) {
+                    result = result.replace(regex, `\n${num})`);
+                    break;
                 }
             }
+            num++;
         }
         
-        // Убираем дубликаты
-        let unique = [];
-        for (let f of foundMarkers) {
-            if (!unique.some(u => u.pos === f.pos)) {
-                unique.push(f);
-            }
-        }
-        foundMarkers = unique;
-        foundMarkers.sort((a, b) => a.pos - b.pos);
-        
-        // Если меньше 2 маркеров — не разбиваем
-        if (foundMarkers.length < 2) {
-            return result;
-        }
-        
-        // Заменяем маркеры на номера пунктов
-        let currentNum = 1;
-        for (let marker of foundMarkers) {
-            let regex = new RegExp(marker.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-            result = result.replace(regex, `\n${currentNum})`);
-            currentNum++;
-        }
-        
-        // Чистим результат
         result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
         result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
         
-        // Сортируем строки по номеру
-        let lines = result.split('\n');
-        lines.sort((a, b) => {
-            let na = parseInt(a.match(/^\d+/));
-            let nb = parseInt(b.match(/^\d+/));
-            return na - nb;
-        });
-        result = lines.join('\n');
+        // Сортируем строки
+        const lines = result.split('\n');
+        if (lines.length > 1) {
+            lines.sort((a, b) => {
+                const na = parseInt(a.match(/^\d+/));
+                const nb = parseInt(b.match(/^\d+/));
+                return na - nb;
+            });
+            result = lines.join('\n');
+        }
         
         return result.includes('\n') ? result : text;
     }
@@ -548,8 +520,10 @@
     function initSpeech() {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
             if (voiceBtn) voiceBtn.style.opacity = '0.5';
+            if (voiceHint) voiceHint.textContent = '❌ Голосовой ввод не поддерживается';
             return;
         }
+        
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
@@ -558,7 +532,7 @@
         
         recognition.onstart = () => {
             isRecording = true;
-            voiceBtn.classList.add('recording');
+            if (voiceBtn) voiceBtn.classList.add('recording');
             if (voiceHint) {
                 if (isTouchDevice) {
                     voiceHint.textContent = '🎙️ Запись... отпустите кнопку для остановки';
@@ -570,7 +544,7 @@
         
         recognition.onend = () => {
             isRecording = false;
-            voiceBtn.classList.remove('recording');
+            if (voiceBtn) voiceBtn.classList.remove('recording');
             if (voiceHint) {
                 if (isTouchDevice) {
                     voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
@@ -663,6 +637,15 @@
     function escapeHtmlForEdit(str) {
         if (!str) return '';
         return str.replace(/<br>/g, '\n');
+    }
+    
+    // Устанавливаем подсказку при загрузке
+    if (voiceHint) {
+        if (isTouchDevice) {
+            voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
+        } else {
+            voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
+        }
     }
     
     initSpeech();
