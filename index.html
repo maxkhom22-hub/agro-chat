@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Агрофирма: голосовые заказы</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -23,8 +22,6 @@
             min-height: 100vh;
             height: 100vh;
             overflow: hidden;
-            position: fixed;
-            width: 100%;
         }
         .app {
             max-width: 800px;
@@ -34,15 +31,6 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-        }
-        /* Отступы для безопасной зоны на iPhone */
-        @supports (padding: max(0px)) {
-            .chat-header {
-                padding-top: max(20px, env(safe-area-inset-top));
-            }
-            .input-area {
-                padding-bottom: max(12px, env(safe-area-inset-bottom));
-            }
         }
         .chat-header {
             background: #2c5f2d;
@@ -221,20 +209,6 @@
             text-align: center;
             padding: 4px 12px;
             background: #f3f4f6;
-        }
-        hr {
-            margin: 15px 0;
-        }
-        /* Скрываем полосу прокрутки на iOS для красоты */
-        .messages::-webkit-scrollbar {
-            width: 4px;
-        }
-        .messages::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        .messages::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 4px;
         }
     </style>
 </head>
@@ -447,11 +421,9 @@
         });
     }
 
-    // ========== РАБОЧАЯ ФУНКЦИЯ РАЗБИВКИ ==========
     function formatOrderText(text) {
         let result = text;
         
-        // Заменяем цифры на пункты
         if (result.match(/\d+/g)) {
             const parts = result.split(/(\d+)/);
             let newParts = [];
@@ -467,7 +439,6 @@
             result = newParts.join('').trim();
         }
         
-        // Заменяем слова-маркеры
         const markers = [
             ['первый', 'первая', 'первое'],
             ['второй', 'вторая', 'второе'],
@@ -648,6 +619,13 @@
             }
         });
         messageInput.addEventListener('input', () => autoResize(messageInput));
+        
+        // ФИКС: при фокусе прокручиваем поле ввода в видимую область
+        messageInput.addEventListener('focus', () => {
+            setTimeout(() => {
+                messageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        });
     }
     
     function escapeHtml(str) {
