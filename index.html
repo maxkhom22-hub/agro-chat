@@ -222,7 +222,7 @@
 </head>
 <body>
 <div class="app">
-    <div class="chat-header">🌾 Агрофирма — заказы</div>
+    <div class="chat-header">🌾 Агрофарм — заказы</div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
         <div class="user-info" id="user-info"></div>
@@ -266,8 +266,6 @@
 
     async function formatWithAI(text) {
         try {
-            console.log("📤 Отправляем в функцию:", text);
-            
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: {
@@ -276,27 +274,15 @@
                 body: JSON.stringify({ text: text })
             });
             
-            console.log("📥 Статус ответа:", response.status);
-            
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error("❌ Ошибка функции:", response.status, errorText);
-                alert(`❌ Ошибка функции (${response.status}): ${errorText}\n\nИспользую запасное форматирование`);
+                console.error('Ошибка функции:', response.status);
                 return formatOrderTextSimple(text);
             }
             
             const data = await response.json();
-            console.log("✅ Ответ функции:", data);
-            
-            const result = data.result || text;
-            
-            // Показываем результат
-            alert(`🎤 Оригинал: "${text}"\n\n🤖 Результат AI:\n${result}`);
-            
-            return result;
+            return data.result || text;
         } catch (error) {
-            console.error("❌ Ошибка при вызове функции:", error);
-            alert(`❌ Ошибка сети: ${error.message}\n\nИспользую запасное форматирование`);
+            console.error('Ошибка при вызове функции:', error);
             return formatOrderTextSimple(text);
         }
     }
@@ -744,14 +730,6 @@
     
     initSpeech();
     setupVoiceHandlers();
-    
-    // Проверка URL при загрузке
-    if (FUNCTION_URL === "https://functions.yandexcloud.net/ВАШ_УРЛ_ФУНКЦИИ") {
-        console.warn("⚠️ ВНИМАНИЕ: URL функции не вставлен!");
-        alert("⚠️ ВНИМАНИЕ!\n\nURL функции YandexGPT не вставлен в код.\n\nГолосовые сообщения будут обрабатываться запасной функцией.\n\nВставьте URL в строку: const FUNCTION_URL = ...");
-    } else {
-        console.log("✅ URL функции установлен:", FUNCTION_URL);
-    }
 </script>
 </body>
 </html>
