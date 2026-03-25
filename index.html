@@ -586,7 +586,7 @@
         });
     }
 
-    // ========== ГОЛОСОВОЙ ВВОД ==========
+    // ========== ГОЛОСОВОЙ ВВОД (исправленный) ==========
     let recognition = null;
     let isRecording = false;
     let finalTranscript = '';
@@ -628,12 +628,13 @@
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
         recognition.interimResults = false;
-        recognition.continuous = true;
+        recognition.continuous = true;  // НЕ останавливается после паузы
         
         recognition.onstart = () => {
             isRecording = true;
             if (voiceBtn) {
                 voiceBtn.classList.add('recording');
+                voiceBtn.textContent = '⏹️';
             }
             if (voiceHint) {
                 if (isTouchDevice) {
@@ -648,6 +649,7 @@
             isRecording = false;
             if (voiceBtn) {
                 voiceBtn.classList.remove('recording');
+                voiceBtn.textContent = '🎤';
             }
             if (voiceHint) {
                 if (isTouchDevice) {
@@ -657,14 +659,16 @@
                 }
             }
             
-            if (finalTranscript.trim() && messageInput) {
+            // Когда запись остановлена пользователем — обрабатываем текст
+            if (finalTranscript.trim()) {
                 const voiceText = finalTranscript.trim();
                 messageInput.value = voiceText;
-                finalTranscript = '';
                 autoResize(messageInput);
+                // Отправляем как голосовое сообщение (с обработкой AI)
                 sendMessage(voiceText, true);
                 messageInput.value = '';
                 autoResize(messageInput);
+                finalTranscript = '';
             }
         };
         
@@ -690,6 +694,9 @@
                 alert('Разрешите доступ к микрофону в настройках браузера');
             } else if (event.error === 'network') {
                 alert('Ошибка сети. Проверьте интернет');
+            } else if (event.error === 'no-speech') {
+                // Игнорируем ошибку "нет речи" — не останавливаем запись
+                return;
             }
             if (isRecording) {
                 try { recognition.stop(); } catch(e) {}
@@ -707,6 +714,7 @@
         if (!voiceBtn || !recognition) return;
         
         if (isTouchDevice) {
+            // Телефон: нажал и держишь → запись, отпустил → стоп
             voiceBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 startRecording();
@@ -720,6 +728,7 @@
                 stopRecording();
             });
         } else {
+            // Компьютер: нажал → запись, нажал ещё раз → стоп
             voiceBtn.addEventListener('click', () => {
                 if (isRecording) {
                     stopRecording();
@@ -733,6 +742,7 @@
     if (sendBtn) {
         sendBtn.addEventListener('click', () => {
             if (messageInput?.value.trim()) {
+                // Текстовое сообщение (не обрабатываем AI)
                 sendMessage(messageInput.value, false);
                 messageInput.value = '';
                 autoResize(messageInput);
