@@ -210,6 +210,14 @@
             padding: 4px 12px;
             background: #f3f4f6;
         }
+        .loading-indicator {
+            font-size: 0.7rem;
+            color: #3b82f6;
+            text-align: center;
+            padding: 4px 12px;
+            background: #eef2ff;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -225,6 +233,7 @@
             <button class="send-btn" id="sendBtn">Отправить</button>
         </div>
         <div class="voice-hint" id="voiceHint">🎤 Нажмите и удерживайте для записи (телефон) / нажмите для старта и стопа (компьютер)</div>
+        <div class="loading-indicator" id="loadingIndicator">🤖 Обработка голоса нейросетью...</div>
     </div>
 </div>
 
@@ -249,8 +258,148 @@
     let currentUserName = '';
     let editingMessageId = null;
 
-    // Определяем, телефон ли это
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+
+    // ========== ВСТАВЬТЕ ВАШ API-КЛЮЧ ЗДЕСЬ ==========
+    const YANDEX_FOLDER_ID = "b1gnt99pva6e5stq6thn";
+    const YANDEX_API_KEY = "AQVNxn3SmJ46wxJBolrYHSLw_dgaLoXvSJ5hP_B0";  // ← ВСТАВЬТЕ КЛЮЧ
+    // ================================================
+    
+    let yandexApiKey = YANDEX_API_KEY;
+
+    async function formatWithAI(text) {
+        if (!yandexApiKey || yandexApiKey === "ВАШ_API_КЛЮЧ_ВСТАВЬТЕ_СЮДА") {
+            console.warn("Нет API-ключа YandexGPT, использую обычное форматирование");
+            return formatOrderTextSimple(text);
+        }
+        
+        try {
+            const prompt = `Преобразуй этот текст заказа в структурированный список пунктов. 
+Правила:
+- Если есть название компании/клиента — оставь его в начале
+- Разбей перечисление на пункты 1), 2), 3)...
+- Убери лишние слова-маркеры (первое, второе, затем, далее и т.д.)
+- Исправь явные ошибки распознавания, если они есть
+- Ответ дай только в виде текста заказа, без пояснений
+
+Текст заказа: "${text}"`;
+
+            const response = await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Api-Key ${yandexApiKey}`
+                },
+                body: JSON.stringify({
+                    modelUri: `gpt://${YANDEX_FOLDER_ID}/yandexgpt-lite`,
+                    completionOptions: {
+                        stream: false,
+                        temperature: 0.3,
+                        maxTokens: 500
+                    },
+                    messages: [
+                        {
+                            role: "system",
+                            text: "Ты помощник, который структурирует заказы в пункты. Отвечаешь только отформатированным текстом."
+                        },
+                        {
+                            role: "user",
+                            text: prompt
+                        }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                console.error('YandexGPT error:', response.status);
+                return formatOrderTextSimple(text);
+            }
+
+            const data = await response.json();
+            const result = data.result?.alternatives?.[0]?.message?.text || text;
+            return result;
+        } catch (error) {
+            console.error('YandexGPT error:', error);
+            return formatOrderTextSimple(text);
+        }
+    }
+
+    // ========== ЗАПАСНАЯ ФУНКЦИЯ (через indexOf) ==========
+    function formatOrderTextSimple(text) {
+        let result = text;
+        let lowerText = text.toLowerCase();
+        
+        const markers = [
+            { words: ['первый', 'первая', 'первое'], num: 1 },
+            { words: ['второй', 'вторая', 'второе'], num: 2 },
+            { words: ['третий', 'третья', 'третье'], num: 3 },
+            { words: ['четвертый', 'четвертая', 'четвертое'], num: 4 },
+            { words: ['пятый', 'пятая', 'пятое'], num: 5 },
+            { words: ['шестой', 'шестая', 'шестое'], num: 6 },
+            { words: ['седьмой', 'седьмая', 'седьмое'], num: 7 },
+            { words: ['восьмой', 'восьмая', 'восьмое'], num: 8 },
+            { words: ['девятый', 'девятая', 'девятое'], num: 9 },
+            { words: ['десятый', 'десятая', 'десятое'], num: 10 }
+        ];
+        
+        let foundMarkers = [];
+        for (let m of markers) {
+            for (let w of m.words) {
+                let pos = lowerText.indexOf(w);
+                if (pos === -1) {
+                    let wWithYo = w.replace(/е/g, 'ё');
+                    pos = lowerText.indexOf(wWithYo);
+                    if (pos !== -1) {
+                        foundMarkers.push({ word: wWithYo, num: m.num, pos: pos, original: result.substr(pos, wWithYo.length) });
+                    }
+                } else {
+                    foundMarkers.push({ word: w, num: m.num, pos: pos, original: result.substr(pos, w.length) });
+                }
+            }
+        }
+        
+        let unique = [];
+        for (let f of foundMarkers) {
+            if (!unique.some(u => u.pos === f.pos)) {
+                unique.push(f);
+            }
+        }
+        foundMarkers = unique;
+        foundMarkers.sort((a, b) => a.pos - b.pos);
+        
+        if (foundMarkers.length < 2) {
+            return text;
+        }
+        
+        let currentNum = 1;
+        for (let marker of foundMarkers) {
+            let regex = new RegExp(marker.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            result = result.replace(regex, `\n${currentNum})`);
+            currentNum++;
+        }
+        
+        result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
+        result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
+        
+        let lines = result.split('\n');
+        if (lines.length > 1) {
+            lines.sort((a, b) => {
+                let na = parseInt(a.match(/^\d+/));
+                let nb = parseInt(b.match(/^\d+/));
+                return na - nb;
+            });
+            result = lines.join('\n');
+        }
+        
+        return result.includes('\n') ? result : text;
+    }
+
+    async function formatOrderText(text, isVoice = false) {
+        if (!isVoice) {
+            return text;
+        }
+        return await formatWithAI(text);
+    }
 
     async function getUserName(userId) {
         const doc = await usersRef.doc(userId).get();
@@ -397,7 +546,7 @@
             document.querySelectorAll('.save-edit-btn').forEach(btn => btn.addEventListener('click', async (e) => {
                 const id = btn.getAttribute('data-id');
                 const newText = document.getElementById(`edit-${id}`).value.trim();
-                if (newText) await ordersRef.doc(id).update({ text: formatOrderText(newText) });
+                if (newText) await ordersRef.doc(id).update({ text: await formatOrderText(newText, false) });
                 editingMessageId = null;
                 listenMessages();
             }));
@@ -410,10 +559,25 @@
         });
     }
 
-    async function sendMessage(text) {
+    async function sendMessage(text, isVoice = false) {
         if (!text.trim() || !currentUser) return;
+        
+        let finalText = text;
+        
+        if (isVoice) {
+            const loader = document.getElementById('loadingIndicator');
+            if (loader) loader.style.display = 'block';
+            try {
+                finalText = await formatOrderText(text, true);
+            } finally {
+                if (loader) loader.style.display = 'none';
+            }
+        } else {
+            finalText = text;
+        }
+        
         await ordersRef.add({
-            text: formatOrderText(text.trim()),
+            text: finalText,
             authorId: currentUser.uid,
             authorName: currentUserName,
             authorEmail: currentUser.email,
@@ -422,57 +586,10 @@
         });
     }
 
-    function formatOrderText(text) {
-        const numbers = text.match(/\b\d+\b/g);
-        const markers = text.match(/\b(первый|второй|третий|четвертый|пятый|шестой|седьмой|восьмой|девятый|десятый)\b/gi);
-        
-        const hasMultipleNumbers = numbers && numbers.length >= 2;
-        const hasMultipleMarkers = markers && markers.length >= 2;
-        
-        if (!hasMultipleNumbers && !hasMultipleMarkers) {
-            return text;
-        }
-        
-        let result = text;
-        
-        if (hasMultipleNumbers) {
-            const parts = result.split(/(\b\d+\b)/);
-            let newParts = [];
-            for (let i = 0; i < parts.length; i++) {
-                if (/^\b\d+\b$/.test(parts[i].trim())) {
-                    newParts.push(`\n${parts[i].trim()})`);
-                } else {
-                    if (parts[i].trim()) {
-                        newParts.push(parts[i]);
-                    }
-                }
-            }
-            result = newParts.join('').trim();
-        }
-        
-        if (hasMultipleMarkers) {
-            const wordList = ['первый','второй','третий','четвертый','пятый','шестой','седьмой','восьмой','девятый','десятый'];
-            let num = 1;
-            for (const word of wordList) {
-                const regex = new RegExp(`\\b${word}\\b`, 'gi');
-                if (regex.test(result)) {
-                    result = result.replace(regex, `\n${num})`);
-                    num++;
-                }
-            }
-        }
-        
-        result = result.replace(/\n+/g, '\n').replace(/^\n/, '').trim();
-        result = result.replace(/(\d+)\)([^\s])/g, '$1) $2');
-        
-        return result.includes('\n') ? result : text;
-    }
-
     // ========== ГОЛОСОВОЙ ВВОД ==========
     let recognition = null;
     let isRecording = false;
     let finalTranscript = '';
-    let pressTimer = null;
     
     const voiceBtn = document.getElementById('voiceBtn');
     const messageInput = document.getElementById('messageInput');
@@ -541,8 +658,12 @@
             }
             
             if (finalTranscript.trim() && messageInput) {
-                messageInput.value = finalTranscript.trim();
+                const voiceText = finalTranscript.trim();
+                messageInput.value = voiceText;
                 finalTranscript = '';
+                autoResize(messageInput);
+                sendMessage(voiceText, true);
+                messageInput.value = '';
                 autoResize(messageInput);
             }
         };
@@ -582,31 +703,23 @@
         textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
     
-    // Настройка обработчиков в зависимости от устройства
     function setupVoiceHandlers() {
         if (!voiceBtn || !recognition) return;
         
         if (isTouchDevice) {
-            // Телефон: нажал и держишь → запись, отпустил → стоп
             voiceBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 startRecording();
             });
-            
             voiceBtn.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 stopRecording();
             });
-            
             voiceBtn.addEventListener('touchcancel', (e) => {
                 e.preventDefault();
                 stopRecording();
             });
-            
-            if (voiceHint) voiceHint.textContent = '🎤 Нажмите и удерживайте для записи';
-            
         } else {
-            // Компьютер: нажал → запись, нажал ещё раз → стоп
             voiceBtn.addEventListener('click', () => {
                 if (isRecording) {
                     stopRecording();
@@ -614,15 +727,13 @@
                     startRecording();
                 }
             });
-            
-            if (voiceHint) voiceHint.textContent = '🎤 Нажмите для старта записи, нажмите ещё раз для остановки';
         }
     }
     
     if (sendBtn) {
         sendBtn.addEventListener('click', () => {
             if (messageInput?.value.trim()) {
-                sendMessage(messageInput.value);
+                sendMessage(messageInput.value, false);
                 messageInput.value = '';
                 autoResize(messageInput);
                 finalTranscript = '';
@@ -644,6 +755,7 @@
         if (!str) return '';
         return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;').replace(/\n/g, '<br>');
     }
+    
     function escapeHtmlForEdit(str) {
         if (!str) return '';
         return str.replace(/<br>/g, '\n');
