@@ -266,6 +266,8 @@
 
     async function formatWithAI(text) {
         try {
+            console.log("📤 Отправляем в функцию:", text);
+            
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: {
@@ -274,17 +276,27 @@
                 body: JSON.stringify({ text: text })
             });
             
+            console.log("📥 Статус ответа:", response.status);
+            
             if (!response.ok) {
-                console.error('Ошибка функции:', response.status);
+                const errorText = await response.text();
+                console.error("❌ Ошибка функции:", response.status, errorText);
+                alert(`❌ Ошибка функции (${response.status}): ${errorText}\n\nИспользую запасное форматирование`);
                 return formatOrderTextSimple(text);
             }
             
             const data = await response.json();
+            console.log("✅ Ответ функции:", data);
+            
             const result = data.result || text;
+            
+            // Показываем результат
+            alert(`🎤 Оригинал: "${text}"\n\n🤖 Результат AI:\n${result}`);
             
             return result;
         } catch (error) {
-            console.error('Ошибка при вызове функции:', error);
+            console.error("❌ Ошибка при вызове функции:", error);
+            alert(`❌ Ошибка сети: ${error.message}\n\nИспользую запасное форматирование`);
             return formatOrderTextSimple(text);
         }
     }
@@ -732,6 +744,14 @@
     
     initSpeech();
     setupVoiceHandlers();
+    
+    // Проверка URL при загрузке
+    if (FUNCTION_URL === "https://functions.yandexcloud.net/ВАШ_УРЛ_ФУНКЦИИ") {
+        console.warn("⚠️ ВНИМАНИЕ: URL функции не вставлен!");
+        alert("⚠️ ВНИМАНИЕ!\n\nURL функции YandexGPT не вставлен в код.\n\nГолосовые сообщения будут обрабатываться запасной функцией.\n\nВставьте URL в строку: const FUNCTION_URL = ...");
+    } else {
+        console.log("✅ URL функции установлен:", FUNCTION_URL);
+    }
 </script>
 </body>
 </html>
