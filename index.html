@@ -222,7 +222,7 @@
 </head>
 <body>
 <div class="app">
-    <div class="chat-header">🌾 Агрофарм — заказы</div>
+    <div class="chat-header">🌾 Агрофирма — заказы</div>
     <div id="auth-container"></div>
     <div id="chat-container" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
         <div class="user-info" id="user-info"></div>
@@ -260,86 +260,31 @@
 
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
 
-    // ========== ВСТАВЬТЕ ВАШ API-КЛЮЧ ЗДЕСЬ ==========
-    const YANDEX_FOLDER_ID = "b1gnt99pva6e5stq6thn";
-    const YANDEX_API_KEY = "AQVNxn3SmJ46wxJBolrYHSLw_dgaLoXvSJ5hP_B0";  // ← ВСТАВЬТЕ КЛЮЧ
+    // ========== ВСТАВЬТЕ URL ВАШЕЙ ФУНКЦИИ ==========
+    const FUNCTION_URL = "https://functions.yandexcloud.net/d4eff8boh488d1u1gjhc";  // ← ВСТАВЬТЕ URL
     // ================================================
-    
-    let yandexApiKey = YANDEX_API_KEY;
 
     async function formatWithAI(text) {
-        if (!yandexApiKey || yandexApiKey === "ВАШ_API_КЛЮЧ_ВСТАВЬТЕ_СЮДА") {
-            console.warn("Нет API-ключа YandexGPT, использую обычное форматирование");
-            alert("⚠️ API-ключ не вставлен! Использую обычное форматирование");
-            return formatOrderTextSimple(text);
-        }
-        
         try {
-            const prompt = `Ты помощник, который структурирует заказы в пункты.
-
-Правила:
-1. Если в тексте есть перечисление (даже без слов "первое", "второе") — разбей на пункты 1), 2), 3)...
-2. Если есть название компании/клиента — оставь в начале
-3. Убери лишние слова-маркеры
-4. Ответ дай ТОЛЬКО в виде текста заказа
-
-Примеры:
-Вход: "ООО Ромашка яблоки груши сливы"
-Выход: "ООО Ромашка\n1) яблоки\n2) груши\n3) сливы"
-
-Вход: "яблоки, груши, сливы"
-Выход: "1) яблоки\n2) груши\n3) сливы"
-
-Вход: "${text}"
-Выход:`;
-
-            console.log("Отправляем запрос в YandexGPT...");
-            
-            const response = await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion', {
+            const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Api-Key ${yandexApiKey}`
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    modelUri: `gpt://${YANDEX_FOLDER_ID}/yandexgpt-lite`,
-                    completionOptions: {
-                        stream: false,
-                        temperature: 0.2,
-                        maxTokens: 500
-                    },
-                    messages: [
-                        {
-                            role: "system",
-                            text: "Ты помощник, который структурирует заказы в пункты. Отвечаешь только отформатированным текстом."
-                        },
-                        {
-                            role: "user",
-                            text: prompt
-                        }
-                    ]
-                })
+                body: JSON.stringify({ text: text })
             });
-
+            
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('YandexGPT error:', response.status, errorText);
-                alert(`Ошибка YandexGPT: ${response.status}\n${errorText}`);
+                console.error('Ошибка функции:', response.status);
                 return formatOrderTextSimple(text);
             }
-
+            
             const data = await response.json();
-            console.log("Ответ YandexGPT:", data);
-            
-            const result = data.result?.alternatives?.[0]?.message?.text || text;
-            
-            // Показываем отладку
-            alert(`Оригинал: ${text}\n\nРезультат AI: ${result}`);
+            const result = data.result || text;
             
             return result;
         } catch (error) {
-            console.error('YandexGPT error:', error);
-            alert(`Ошибка при вызове AI: ${error.message}`);
+            console.error('Ошибка при вызове функции:', error);
             return formatOrderTextSimple(text);
         }
     }
@@ -787,13 +732,6 @@
     
     initSpeech();
     setupVoiceHandlers();
-    
-    // Проверка ключа при старте
-    if (!YANDEX_API_KEY || YANDEX_API_KEY === "ВАШ_API_КЛЮЧ_ВСТАВЬТЕ_СЮДА") {
-        console.warn("API-ключ не вставлен!");
-    } else {
-        console.log("API-ключ установлен");
-    }
 </script>
 </body>
 </html>
