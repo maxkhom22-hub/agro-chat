@@ -262,41 +262,39 @@
 
     // ========== ВСТАВЬТЕ ВАШ API-КЛЮЧ ЗДЕСЬ ==========
     const YANDEX_FOLDER_ID = "b1gnt99pva6e5stq6thn";
-    const YANDEX_API_KEY = "ВАШ_API_КЛЮЧ_ВСТАВЬТЕ_СЮДА";  // ← ВСТАВЬТЕ КЛЮЧ
+    const YANDEX_API_KEY = "AQVNxn3SmJ46wxJBolrYHSLw_dgaLoXvSJ5hP_B0";  // ← ВСТАВЬТЕ КЛЮЧ
     // ================================================
     
     let yandexApiKey = YANDEX_API_KEY;
 
     async function formatWithAI(text) {
-        if (!yandexApiKey || yandexApiKey === "AQVNxn3SmJ46wxJBolrYHSLw_dgaLoXvSJ5hP_B0") {
+        if (!yandexApiKey || yandexApiKey === "ВАШ_API_КЛЮЧ_ВСТАВЬТЕ_СЮДА") {
             console.warn("Нет API-ключа YandexGPT, использую обычное форматирование");
+            alert("⚠️ API-ключ не вставлен! Использую обычное форматирование");
             return formatOrderTextSimple(text);
         }
         
         try {
-            // ========== НОВЫЙ ПРОМПТ — AI сам определяет перечисления ==========
             const prompt = `Ты помощник, который структурирует заказы в пункты.
 
 Правила:
-1. Если в тексте есть перечисление (даже без слов "первое", "второе" и т.д.) — разбей его на пункты 1), 2), 3)...
-2. Если есть название компании/клиента — оставь его в начале, не нумеруй
-3. Убери лишние слова-маркеры (первое, второе, затем, далее, и ещё и т.д.)
-4. Исправь явные ошибки распознавания, если они есть
-5. Ответ дай ТОЛЬКО в виде текста заказа, без пояснений
+1. Если в тексте есть перечисление (даже без слов "первое", "второе") — разбей на пункты 1), 2), 3)...
+2. Если есть название компании/клиента — оставь в начале
+3. Убери лишние слова-маркеры
+4. Ответ дай ТОЛЬКО в виде текста заказа
 
 Примеры:
-Вход: "ООО Ромашка нужно яблоки груши сливы"
+Вход: "ООО Ромашка яблоки груши сливы"
 Выход: "ООО Ромашка\n1) яблоки\n2) груши\n3) сливы"
 
-Вход: "компания вектор первое 500 кг яблок второе 300 кг груш"
-Выход: "компания вектор\n1) 500 кг яблок\n2) 300 кг груш"
-
-Вход: "запишите для агрофирмы: яблоки 500 кг, груши 300 кг, сливы 100 кг"
-Выход: "агрофирма\n1) яблоки 500 кг\n2) груши 300 кг\n3) сливы 100 кг"
+Вход: "яблоки, груши, сливы"
+Выход: "1) яблоки\n2) груши\n3) сливы"
 
 Вход: "${text}"
 Выход:`;
 
+            console.log("Отправляем запрос в YandexGPT...");
+            
             const response = await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion', {
                 method: 'POST',
                 headers: {
@@ -324,20 +322,29 @@
             });
 
             if (!response.ok) {
-                console.error('YandexGPT error:', response.status);
+                const errorText = await response.text();
+                console.error('YandexGPT error:', response.status, errorText);
+                alert(`Ошибка YandexGPT: ${response.status}\n${errorText}`);
                 return formatOrderTextSimple(text);
             }
 
             const data = await response.json();
+            console.log("Ответ YandexGPT:", data);
+            
             const result = data.result?.alternatives?.[0]?.message?.text || text;
+            
+            // Показываем отладку
+            alert(`Оригинал: ${text}\n\nРезультат AI: ${result}`);
+            
             return result;
         } catch (error) {
             console.error('YandexGPT error:', error);
+            alert(`Ошибка при вызове AI: ${error.message}`);
             return formatOrderTextSimple(text);
         }
     }
 
-    // ========== ЗАПАСНАЯ ФУНКЦИЯ (НЕ МЕНЯЕТСЯ) ==========
+    // ========== ЗАПАСНАЯ ФУНКЦИЯ ==========
     function formatOrderTextSimple(text) {
         let result = text;
         let lowerText = text.toLowerCase();
@@ -780,6 +787,13 @@
     
     initSpeech();
     setupVoiceHandlers();
+    
+    // Проверка ключа при старте
+    if (!YANDEX_API_KEY || YANDEX_API_KEY === "ВАШ_API_КЛЮЧ_ВСТАВЬТЕ_СЮДА") {
+        console.warn("API-ключ не вставлен!");
+    } else {
+        console.log("API-ключ установлен");
+    }
 </script>
 </body>
 </html>
